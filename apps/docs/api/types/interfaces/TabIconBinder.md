@@ -1,6 +1,6 @@
 # Interface: TabIconBinder
 
-Defined in: [packages/sdk/src/tab-adornment.ts:165](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L165)
+Defined in: [packages/sdk/src/tab-adornment.ts:170](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L170)
 
 Keep a leading-icon projection in sync for every editor/terminal tab.
 Prefer over repeatedly calling [EditorService.setIcon](EditorService.md#seticon).
@@ -13,7 +13,7 @@ Prefer over repeatedly calling [EditorService.setIcon](EditorService.md#seticon)
 id: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:167](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L167)
+Defined in: [packages/sdk/src/tab-adornment.ts:172](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L172)
 
 Extension-owned key — conventionally `"<extension-id>.tab-icon"`.
 
@@ -25,7 +25,7 @@ Extension-owned key — conventionally `"<extension-id>.tab-icon"`.
 provide(targetId): TabIconContribution | null;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:172](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L172)
+Defined in: [packages/sdk/src/tab-adornment.ts:177](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L177)
 
 Called synchronously per tab during render. Return `null` to contribute
 nothing for this target id (editor id or terminal session id).

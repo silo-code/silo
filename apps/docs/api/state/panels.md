@@ -1,6 +1,6 @@
 # ctx.panels
 
-Tab chrome — leading icon, whole-tab highlight, trailing indicator, and
+Tab chrome — leading icon, tab highlight, trailing indicator, and
 host-owned Activity — for a dock panel tab of **any** `DockPanelKind` (RFC
 0046): the bundled Chat transcript, a web viewer, a third-party panel. Mirrors
 [`ctx.editors`](/api/editors/) and [`ctx.terminals`](/api/state/terminals),
@@ -65,7 +65,7 @@ family documented in [Tab adornments](/api/state/tab-adornments).
 | [`getState()` / `subscribe(listener)`](/api/types/interfaces/PanelService#getstate)                          | The active panel, or `null` — see [Active panel](#active-panel) below.             |
 | [`setActivity` / `clearActivity` / `flashActivity` / `bindActivity`](/api/types/interfaces/PanelService)     | Host-owned Activity (ADR 0030)                                                     |
 | [`setIndicator` / `clearIndicator` / `flashIndicator` / `bindIndicator`](/api/types/interfaces/PanelService) | Trailing static Phosphor indicators                                                |
-| [`setHighlight` / `clearHighlight` / `bindHighlight`](/api/types/interfaces/PanelService)                    | Whole-tab tinted highlight                                                         |
+| [`setHighlight` / `clearHighlight` / `bindHighlight`](/api/types/interfaces/PanelService)                    | Tinted tab highlight                                                               |
 | [`setIcon` / `clearIcon` / `bindIcon`](/api/types/interfaces/PanelService)                                   | Leading ReactNode icons                                                            |
 | [`invalidateTabAdornments`](/api/types/interfaces/PanelService#invalidatetabadornments)                      | Re-query binders                                                                   |
 

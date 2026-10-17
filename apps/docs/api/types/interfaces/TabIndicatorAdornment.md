@@ -1,6 +1,6 @@
 # Interface: TabIndicatorAdornment
 
-Defined in: [packages/sdk/src/tab-adornment.ts:60](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L60)
+Defined in: [packages/sdk/src/tab-adornment.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L65)
 
 Trailing status adornment on a CenterDock tab — static Phosphor glyph.
 For busy/ready/warn/error chrome use [TabActivityAdornment](TabActivityAdornment.md) instead
@@ -17,7 +17,7 @@ Set via [EditorService.setIndicator](EditorService.md#setindicator) /
 id: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L62)
+Defined in: [packages/sdk/src/tab-adornment.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L67)
 
 Extension-owned key; stacking + clear target.
 
@@ -29,7 +29,7 @@ Extension-owned key; stacking + clear target.
 icon: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L70)
+Defined in: [packages/sdk/src/tab-adornment.ts:75](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L75)
 
 Glyph as a [PhosphorIconName](../type-aliases/PhosphorIconName.md) (e.g. `"Flag"`). The host resolves
 and paints it at 1em in regular weight by default. Set
@@ -45,7 +45,7 @@ and paints it at 1em in regular weight by default. Set
 optional tooltip?: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L72)
+Defined in: [packages/sdk/src/tab-adornment.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L77)
 
 Tooltip shown when hovering the indicator.
 
@@ -57,7 +57,7 @@ Tooltip shown when hovering the indicator.
 optional color?: TabAdornmentColor;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:74](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L74)
+Defined in: [packages/sdk/src/tab-adornment.ts:79](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L79)
 
 Semantic color for the glyph (and chip fill).
 
@@ -69,7 +69,7 @@ Semantic color for the glyph (and chip fill).
 optional chip?: boolean;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:79](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L79)
+Defined in: [packages/sdk/src/tab-adornment.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L84)
 
 When true, paint a soft tinted chip behind the icon. Default is
 glyph-only — no background.
@@ -82,7 +82,7 @@ glyph-only — no background.
 optional filled?: boolean;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L84)
+Defined in: [packages/sdk/src/tab-adornment.ts:89](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L89)
 
 When true, paint the glyph with Phosphor `weight="fill"`. Default is
 regular weight (outline).

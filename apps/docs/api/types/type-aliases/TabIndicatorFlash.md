@@ -4,7 +4,7 @@
 type TabIndicatorFlash = TabIndicatorContribution & object;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L109)
+Defined in: [packages/sdk/src/tab-adornment.ts:114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L114)
 
 Payload for [EditorService.flashIndicator](../interfaces/EditorService.md#flashindicator) /
 [TerminalService.flashIndicator](../interfaces/TerminalService.md#flashindicator) — timed one-shot; no stable `id`

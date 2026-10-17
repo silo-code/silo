@@ -267,8 +267,8 @@
   text-overflow: ellipsis;
 }
 
-/* Whole-tab highlight — ctx.editors / ctx.terminals setHighlight /
- * bindHighlight. `.dv-default-tab` only fills dockview's own `.dv-tab`
+/* Whole-tab highlight — ctx.editors / ctx.terminals / ctx.panels setHighlight
+ * / bindHighlight. `.dv-default-tab` only fills dockview's own `.dv-tab`
  * *content* box (inset by `.dv-tab`'s own padding + border), so painting a
  * background there leaves slivers of the tab strip showing at the edges.
  * Paint `.dv-tab` itself instead — the same box its active/inactive
@@ -278,6 +278,26 @@
  * `:has()` hook (dockview inserts a plain `.dv-react-part` wrapper between
  * `.dv-tab` and `.dv-default-tab`, so this can't be a direct-child `>`
  * selector).
+ *
+ * The treatment is a *veil*: the semantic color hangs from the tab's top
+ * edge and falls to nothing before it reaches the bottom, plus the title in
+ * the same color. Deliberately edgeless — no border, no bar, no chip fill.
+ * A flat wash over the whole chip (what this used to be) stops the tab
+ * reading as a tab and starts it reading as a button, and a strip with
+ * three highlights in it becomes a status board. A gradient with no hard
+ * edge anywhere also never stacks against the focused tab's 2px accent
+ * border, which sits directly above it.
+ *
+ * Only the *title* takes the color, not `.dv-tab`'s `color` — the leading
+ * icon and the trailing indicator keep their own, so an indicator is still
+ * free to disagree with the highlight (an `error` glyph on a tab highlighted
+ * `ok`). Tinting via `currentColor` on the tab, as this used to, collapses
+ * all three into one hue and loses that.
+ *
+ * `background-image` rather than `background`, so the active tab keeps the
+ * `background-color` dockview gives it — the content surface the tab is
+ * supposed to look fused to. Painting shorthand `background` here erased it
+ * and let the tab strip show through the highlighted tab.
  *
  * dockview's own base stylesheet sets `.dv-tab.dv-active-tab` /
  * `.dv-tab.dv-inactive-tab` background+color with 6 chained classes
@@ -294,15 +314,23 @@
   .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
     .dv-default-tab.dvi-tab-highlight
   ) {
-  background: color-mix(in srgb, currentColor 15%, transparent);
-}
-.editor-dock
-  .dv-groupview
-  .dv-tabs-container
-  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
-    .dv-default-tab.dvi-tab-highlight[data-color="accent"]
-  ) {
-  color: var(--silo-color-accent);
+  --silo-internal-tab-highlight: var(--silo-color-accent);
+  /* `border-box`, not the `padding-box` default: `.dv-tab` reserves 2px of
+   * top border for the focus bar, and a gradient positioned from the padding
+   * box starts *below* that — leaving the reserved strip showing the flat tab
+   * background above the veil. Starting at the border box runs the gradient
+   * edge to edge. */
+  background-origin: border-box;
+  /* Runs the full height and reaches zero exactly at the bottom edge. Ending
+   * the ramp early — anywhere the color visibly stops before the tab does —
+   * gives the tab a domed, 3D look: the eye reads the termination as a
+   * curved surface. Keeping the ramp long removes that cue entirely, so the
+   * density at the top (not the length) is the knob for how loud this is. */
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--silo-internal-tab-highlight) 20%, transparent),
+    transparent 100%
+  );
 }
 .editor-dock
   .dv-groupview
@@ -310,7 +338,7 @@
   .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
     .dv-default-tab.dvi-tab-highlight[data-color="warn"]
   ) {
-  color: var(--silo-color-warn);
+  --silo-internal-tab-highlight: var(--silo-color-warn);
 }
 .editor-dock
   .dv-groupview
@@ -318,7 +346,7 @@
   .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
     .dv-default-tab.dvi-tab-highlight[data-color="ok"]
   ) {
-  color: var(--silo-color-ok);
+  --silo-internal-tab-highlight: var(--silo-color-ok);
 }
 .editor-dock
   .dv-groupview
@@ -326,7 +354,7 @@
   .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
     .dv-default-tab.dvi-tab-highlight[data-color="error"]
   ) {
-  color: var(--silo-color-err);
+  --silo-internal-tab-highlight: var(--silo-color-err);
 }
 .editor-dock
   .dv-groupview
@@ -334,7 +362,15 @@
   .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
     .dv-default-tab.dvi-tab-highlight[data-color="muted"]
   ) {
-  color: var(--silo-color-text-lo);
+  --silo-internal-tab-highlight: var(--silo-color-text-lo);
+}
+/* The label, in the highlight color. A rule on the title element beats the
+ * color `.dv-tab` hands down by inheritance regardless of specificity, so
+ * this one needs no padding. */
+.editor-dock
+  .dv-tab:has(.dv-default-tab.dvi-tab-highlight)
+  .dv-default-tab-content {
+  color: var(--silo-internal-tab-highlight);
 }
 
 .editor-dock .dv-tab.dv-inactive-tab {
@@ -372,6 +408,25 @@
   .dv-groupview.dv-active-group
   .dv-tab.dv-active-tab {
   border-top-color: var(--silo-color-accent);
+}
+/* …and when it doesn't, let the highlight veil through that reserved 2px
+ * instead of a blank band sitting on top of it. dockview's own theme paints
+ * `.dv-tab.dv-active-tab`'s top border *opaque, in the tab's background
+ * color* — invisible on a plain tab (it matches), but on a highlighted one
+ * it caps the gradient with a hard band of untinted tab background, which is
+ * the one edge the veil exists not to have. Clearing the color lets the
+ * gradient (now positioned from the border box, above) show through. Scoped
+ * to the two cases the accent rule above doesn't claim (dock unfocused; a
+ * split's non-active group) so neither rule has to out-specify the other. */
+.editor-dock:not(.dock-has-focus)
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab.dv-active-tab:has(.dv-default-tab.dvi-tab-highlight),
+.editor-dock
+  .dv-groupview:not(.dv-active-group)
+  .dv-tabs-container
+  .dv-tab.dv-active-tab:has(.dv-default-tab.dvi-tab-highlight) {
+  border-top-color: transparent;
 }
 
 /* Preview tab title shown in italic, matching VS Code's "preview" indicator. */

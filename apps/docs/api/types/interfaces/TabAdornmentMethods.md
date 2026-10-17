@@ -1,6 +1,6 @@
 # Interface: TabAdornmentMethods
 
-Defined in: [packages/sdk/src/tab-adornment.ts:228](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L228)
+Defined in: [packages/sdk/src/tab-adornment.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L233)
 
 Shared adorn verbs for CenterDock editor and terminal tabs. Implemented by
 [EditorService](EditorService.md) and [TerminalService](TerminalService.md) (target id is the editor
@@ -20,7 +20,7 @@ or terminal session id respectively).
 setIcon(targetId, adornment): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:229](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L229)
+Defined in: [packages/sdk/src/tab-adornment.ts:234](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L234)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:229](https://github.com/silo-code
 clearIcon(targetId, adornmentId): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:230](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L230)
+Defined in: [packages/sdk/src/tab-adornment.ts:235](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L235)
 
 #### Parameters
 
@@ -68,7 +68,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:230](https://github.com/silo-code
 bindIcon(binder): Disposable;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:231](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L231)
+Defined in: [packages/sdk/src/tab-adornment.ts:236](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L236)
 
 #### Parameters
 
@@ -88,7 +88,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:231](https://github.com/silo-code
 setHighlight(targetId, adornment): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L233)
+Defined in: [packages/sdk/src/tab-adornment.ts:238](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L238)
 
 #### Parameters
 
@@ -112,7 +112,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:233](https://github.com/silo-code
 clearHighlight(targetId, adornmentId): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:234](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L234)
+Defined in: [packages/sdk/src/tab-adornment.ts:239](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L239)
 
 #### Parameters
 
@@ -136,7 +136,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:234](https://github.com/silo-code
 bindHighlight(binder): Disposable;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:235](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L235)
+Defined in: [packages/sdk/src/tab-adornment.ts:240](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L240)
 
 #### Parameters
 
@@ -156,7 +156,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:235](https://github.com/silo-code
 setIndicator(targetId, adornment): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:237](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L237)
+Defined in: [packages/sdk/src/tab-adornment.ts:242](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L242)
 
 #### Parameters
 
@@ -180,7 +180,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:237](https://github.com/silo-code
 clearIndicator(targetId, adornmentId): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:238](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L238)
+Defined in: [packages/sdk/src/tab-adornment.ts:243](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L243)
 
 #### Parameters
 
@@ -204,7 +204,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:238](https://github.com/silo-code
 flashIndicator(targetId, flash): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:239](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L239)
+Defined in: [packages/sdk/src/tab-adornment.ts:244](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L244)
 
 #### Parameters
 
@@ -228,7 +228,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:239](https://github.com/silo-code
 bindIndicator(binder): Disposable;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:240](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L240)
+Defined in: [packages/sdk/src/tab-adornment.ts:245](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L245)
 
 #### Parameters
 
@@ -248,7 +248,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:240](https://github.com/silo-code
 setActivity(targetId, adornment): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:242](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L242)
+Defined in: [packages/sdk/src/tab-adornment.ts:247](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L247)
 
 #### Parameters
 
@@ -272,7 +272,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:242](https://github.com/silo-code
 clearActivity(targetId, adornmentId): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:243](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L243)
+Defined in: [packages/sdk/src/tab-adornment.ts:248](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L248)
 
 #### Parameters
 
@@ -296,7 +296,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:243](https://github.com/silo-code
 flashActivity(targetId, flash): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:244](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L244)
+Defined in: [packages/sdk/src/tab-adornment.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L249)
 
 #### Parameters
 
@@ -320,7 +320,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:244](https://github.com/silo-code
 bindActivity(binder): Disposable;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:245](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L245)
+Defined in: [packages/sdk/src/tab-adornment.ts:250](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L250)
 
 #### Parameters
 
@@ -340,7 +340,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:245](https://github.com/silo-code
 getIcons(targetId): TabIconAdornment[];
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:248](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L248)
+Defined in: [packages/sdk/src/tab-adornment.ts:253](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L253)
 
 All leading icons for `targetId`, in set/bind order.
 
@@ -362,7 +362,7 @@ All leading icons for `targetId`, in set/bind order.
 getHighlight(targetId): TabHighlightAdornment | null;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:253](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L253)
+Defined in: [packages/sdk/src/tab-adornment.ts:258](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L258)
 
 The whole-tab highlight for `targetId`, or `null` if none. At most one
 applies — first found across `set`/`bind` order.
@@ -385,7 +385,7 @@ applies — first found across `set`/`bind` order.
 getIndicators(targetId): TabIndicatorAdornment[];
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:255](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L255)
+Defined in: [packages/sdk/src/tab-adornment.ts:260](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L260)
 
 All trailing indicators for `targetId`, in set/bind/flash order.
 
@@ -407,7 +407,7 @@ All trailing indicators for `targetId`, in set/bind/flash order.
 getActivities(targetId): TabActivityAdornment[];
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:257](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L257)
+Defined in: [packages/sdk/src/tab-adornment.ts:262](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L262)
 
 All trailing activities for `targetId`, in set/bind/flash order.
 
@@ -429,7 +429,7 @@ All trailing activities for `targetId`, in set/bind/flash order.
 invalidateTabAdornments(): void;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:259](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L259)
+Defined in: [packages/sdk/src/tab-adornment.ts:264](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L264)
 
 Signal that binder data changed — re-query `provide` and re-render.
 
@@ -445,7 +445,7 @@ Signal that binder data changed — re-query `provide` and re-render.
 subscribeTabAdornments(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:260](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L260)
+Defined in: [packages/sdk/src/tab-adornment.ts:265](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L265)
 
 #### Parameters
 
