@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.76.0](https://github.com/silo-code/silo/compare/silo-v0.75.0...silo-v0.76.0) (2026-10-17)
+
+
+### Features
+
+* **dock:** make the tab highlight an inset chip, lighter on the active tab ([#637](https://github.com/silo-code/silo/issues/637)) ([ca9df2f](https://github.com/silo-code/silo/commit/ca9df2f8f4b1eccef93d53bd4de63a917c3fb8f6))
+* **dock:** tab-highlight veil, an "info" color, and a reliable panel workspace id ([#635](https://github.com/silo-code/silo/issues/635)) ([e4c09d3](https://github.com/silo-code/silo/commit/e4c09d33a86fc5a7e010a42495bef1e4463f1d96))
+* **sdk:** panel/editor focus, active-panel state, and the split toolbar control ([#633](https://github.com/silo-code/silo/issues/633)) ([74f5219](https://github.com/silo-code/silo/commit/74f52198bbf2d7b7daf26c1728e8e24ffe04e0cc))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** don't let a blank thought chunk break a tool-call group ([#631](https://github.com/silo-code/silo/issues/631)) ([983f0ab](https://github.com/silo-code/silo/commit/983f0abd72444def5f00a4e713f54b82af56c54d))
+* **agents:** show the waiting glyph for a blocked agent parked in Ready ([#629](https://github.com/silo-code/silo/issues/629)) ([c09bc62](https://github.com/silo-code/silo/commit/c09bc621bc2cfc335bd9d6fc2c286b0e748ff36a))
+
 ## [0.75.0](https://github.com/silo-code/silo/compare/silo-v0.74.0...silo-v0.75.0) (2026-10-14)
 
 
