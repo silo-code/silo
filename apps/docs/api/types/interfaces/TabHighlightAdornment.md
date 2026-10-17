@@ -2,9 +2,9 @@
 
 Defined in: [packages/sdk/src/tab-adornment.ts:58](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L58)
 
-Soft tinted highlight on a CenterDock tab: the semantic color falls from
-the tab's top edge and fades out before the bottom, and the title takes
-the same color. The leading [icon](TabIconAdornment.md) and the
+Soft tinted highlight on a CenterDock tab: a rounded chip in the semantic
+color, inset from every tab edge so the tab's own shape still reads, and
+the title takes the same color. The leading [icon](TabIconAdornment.md) and the
 trailing [indicator](TabIndicatorAdornment.md) keep their own colors,
 so an indicator stays free to disagree with the highlight.
 
