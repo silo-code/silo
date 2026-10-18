@@ -3,6 +3,7 @@ import type { Disposable, MenuItem, SidePanel } from "@silo-code/sdk";
 import { sidePanelRegistry } from "../extension-host/side-panels";
 import { store } from "../state/store";
 import {
+  brandPaneId,
   createGhost,
   moveGhost,
   removeGhost,
@@ -134,5 +135,51 @@ describe("the drag ghost", () => {
     expect(document.body.style.cursor).toBe("");
     // A move after removal is a no-op, not a crash.
     expect(() => moveGhost(10, 10)).not.toThrow();
+  });
+});
+
+describe("brandPaneId", () => {
+  it("names the left dock's only pane", () => {
+    expect(brandPaneId("left", { type: "pane", id: "left" })).toBe("left");
+  });
+
+  it("names the leading pane of a split left dock", () => {
+    expect(
+      brandPaneId("left", {
+        type: "split",
+        direction: "row",
+        sizes: [50, 50],
+        children: [
+          { type: "pane", id: "left-2" },
+          { type: "pane", id: "left" },
+        ],
+      }),
+    ).toBe("left-2");
+  });
+
+  it("descends into a nested split to find the leading pane", () => {
+    expect(
+      brandPaneId("left", {
+        type: "split",
+        direction: "row",
+        sizes: [50, 50],
+        children: [
+          {
+            type: "split",
+            direction: "column",
+            sizes: [50, 50],
+            children: [
+              { type: "pane", id: "left-3" },
+              { type: "pane", id: "left-2" },
+            ],
+          },
+          { type: "pane", id: "left" },
+        ],
+      }),
+    ).toBe("left-3");
+  });
+
+  it("never brands the right dock", () => {
+    expect(brandPaneId("right", { type: "pane", id: "right" })).toBeNull();
   });
 });

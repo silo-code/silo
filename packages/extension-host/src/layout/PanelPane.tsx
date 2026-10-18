@@ -16,9 +16,17 @@ interface PanelPaneProps {
    * (`activeSidePanelTabs`, the side-pane registry) is stored under. */
   slot: string;
   location: "left" | "right";
+  /** Head this pane's tab bar with the Silo wordmark. Set on exactly one pane
+   * per window — see `SideColumn`. */
+  brand?: boolean;
 }
 
-export function PanelPane({ panels, slot, location }: PanelPaneProps) {
+export function PanelPane({
+  panels,
+  slot,
+  location,
+  brand = false,
+}: PanelPaneProps) {
   const activeDrag = useSideTabDrag();
   const snap = useSnapshot(store);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -210,6 +218,7 @@ export function PanelPane({ panels, slot, location }: PanelPaneProps) {
         location={location}
         activeId={activeId}
         onActivate={activatePanel}
+        brand={brand}
       />
       <div
         ref={hostRef}
