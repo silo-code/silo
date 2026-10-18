@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { useSnapshot } from "valtio";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
+  brandPaneId as resolveBrandPaneId,
   usePanelsForSlot,
   useRegistryTick,
   useSideTabDrag,
@@ -57,12 +58,21 @@ function EmptyColumn({
 function PaneLeaf({
   paneId,
   location,
+  brandPaneId,
 }: {
   paneId: string;
   location: "left" | "right";
+  brandPaneId: string | null;
 }) {
   const panels = usePanelsForSlot(paneId);
-  return <PanelPane panels={panels} slot={paneId} location={location} />;
+  return (
+    <PanelPane
+      panels={panels}
+      slot={paneId}
+      location={location}
+      brand={paneId === brandPaneId}
+    />
+  );
 }
 
 /**
@@ -75,10 +85,14 @@ function TreeNode({
   node,
   location,
   path,
+  brandPaneId,
 }: {
   node: SideDockNode;
   location: "left" | "right";
   path: readonly number[];
+  /** The pane whose tab bar carries the Silo wordmark, or `null` in a subtree
+   * that doesn't contain it. */
+  brandPaneId: string | null;
 }) {
   // `onLayout` also fires for mount and for the library's own re-validation
   // against new constraints, and recording those would let a stint at a narrow
@@ -87,7 +101,13 @@ function TreeNode({
   const dragging = useRef(false);
 
   if (isPane(node)) {
-    return <PaneLeaf paneId={node.id} location={location} />;
+    return (
+      <PaneLeaf
+        paneId={node.id}
+        location={location}
+        brandPaneId={brandPaneId}
+      />
+    );
   }
 
   const isRow = node.direction === "row";
@@ -113,7 +133,12 @@ function TreeNode({
             minSize={isRow ? 20 : 15}
             className="side-panel-segment"
           >
-            <TreeNode node={child} location={location} path={[...path, i]} />
+            <TreeNode
+              node={child}
+              location={location}
+              path={[...path, i]}
+              brandPaneId={brandPaneId}
+            />
           </Panel>
         );
         if (i === 0) return [panel];
@@ -164,6 +189,8 @@ export function SideColumn({ location }: { location: "left" | "right" }) {
   if (visible === null)
     return <EmptyColumn location={location} paneId={firstPaneId(tree)} />;
 
+  const brandPaneId = resolveBrandPaneId(location, visible);
+
   return (
     <TreeNode
       // Remount when the *shape* changes so the panels adopt the new sizes;
@@ -173,6 +200,7 @@ export function SideColumn({ location }: { location: "left" | "right" }) {
       node={visible}
       location={location}
       path={EMPTY_PATH}
+      brandPaneId={brandPaneId}
     />
   );
 }

@@ -213,6 +213,14 @@ always has at least one.
 _Avoid_: Slot (the retired positional term — a SideDock used to divide into a
 fixed Top Slot and Bottom Slot), region, zone
 
+**Wordmark**:
+The "silo" lettering that heads the left SideDock's first Side Pane tab bar —
+the app's brand in the window's top-left corner. One asset for every theme: it
+is drawn in `currentColor`, so it takes the chrome text color (near-black on a
+light theme, near-white on a dark one). Decorative only — not a tab, not a
+click target.
+_Avoid_: Logo (ambiguous with the app icon the OS shows), logomark, brand bar
+
 **Pane Id**:
 The opaque, stable identifier of a Side Pane, unique across both SideDocks. It
 is what a Side Panel's placement is recorded against, and it carries no

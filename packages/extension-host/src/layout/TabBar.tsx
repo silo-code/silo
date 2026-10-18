@@ -10,6 +10,7 @@ import {
 } from "../state/store";
 import { firstPaneId, type InsertSide } from "../state/side-dock-tree";
 import { sideTabDrag } from "./drag-state";
+import { SiloWordmark } from "./SiloWordmark";
 import {
   getDropInfo,
   createGhost,
@@ -25,6 +26,12 @@ interface TabBarProps {
   location: "left" | "right";
   activeId: string | null;
   onActivate: (id: string) => void;
+  /**
+   * Reserve the head of the bar for the Silo wordmark and start the tabs after
+   * it. Set on exactly one bar — the left dock's first pane — so the app is
+   * branded in the top-left corner without spending a row of chrome on it.
+   */
+  brand?: boolean;
 }
 
 export function TabBar({
@@ -33,6 +40,7 @@ export function TabBar({
   location,
   activeId,
   onActivate,
+  brand = false,
 }: TabBarProps) {
   const activeDrag = useSideTabDrag();
   const barRef = useRef<HTMLDivElement>(null);
@@ -249,6 +257,14 @@ export function TabBar({
       onPointerCancel={onBarPointerCancel}
       onContextMenu={onBarContextMenu}
     >
+      {/* Decorative, and deliberately not a `.tab`: every pointer handler on
+          the bar resolves its target with `closest("button.tab")`, so the
+          wordmark neither starts a drag nor shifts a drop index. */}
+      {brand && (
+        <span className="tab-brand" aria-hidden="true">
+          <SiloWordmark />
+        </span>
+      )}
       {displayPanels.map((p) => (
         <button
           key={p.id}

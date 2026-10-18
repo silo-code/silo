@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSnapshot } from "valtio";
 import { sidePanelRegistry } from "../extension-host/side-panels";
 import type { MenuEntry, SidePanel } from "@silo-code/sdk";
-import type { SideDockTrees } from "../state/side-dock-tree";
+import type { SideDockNode, SideDockTrees } from "../state/side-dock-tree";
 import {
   store,
   isSidePanelVisible,
   toggleSidePanelVisibility,
 } from "../state/store";
 import { sideTabDrag } from "./drag-state";
-import { resolvePaneId } from "../state/side-dock-tree";
+import { firstPaneId, resolvePaneId } from "../state/side-dock-tree";
 import { dropZoneAt, type DropZone } from "./side-dock-drop";
 
 // ─── drag ghost element ──────────────────────────────────────────────────────
@@ -169,4 +169,22 @@ export function sidePanelVisibilityItems(): MenuEntry[] {
     });
   }
   return items;
+}
+
+// ─── brand placement ─────────────────────────────────────────────────────────
+
+/**
+ * Which pane's tab bar carries the Silo wordmark.
+ *
+ * The mark belongs to the window's top-left corner, so it rides the left dock's
+ * first pane — by id, not by the literal "left" slot, since splitting that dock
+ * mints a new pane in front of it (RFC 0027: a pane id is opaque). Pass the
+ * dock's **rendered** tree, not the stored one: a pane with nothing visible in
+ * it is pruned before render, and the brand should not follow it offscreen.
+ */
+export function brandPaneId(
+  location: "left" | "right",
+  visible: SideDockNode,
+): string | null {
+  return location === "left" ? firstPaneId(visible) : null;
 }

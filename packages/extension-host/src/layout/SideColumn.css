@@ -4,6 +4,41 @@
   flex-shrink: 0;
 }
 
+/* The Silo wordmark at the head of the left dock's first tab bar — the app's
+   top-left corner, without spending a row of chrome on a brand strip. It only
+   reserves width; the tabs flow after it as usual.
+
+   Drawn in `currentColor` (inherited from `.panel-header`, i.e.
+   `--silo-color-text-hi`), so it reads near-black on a light theme and
+   near-white on a dark one from the one asset — see SiloWordmark.tsx. Sized
+   off the chrome font rather than a fixed px so it tracks `uiFontSize` with
+   the tab labels beside it. */
+.panel-header.tabs .tab-brand {
+  --silo-internal-wordmark-height: calc(var(--silo-font-size-chrome) * 1.8);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 16px 0 14px;
+  /* Nudged up a hair: the wordmark's optical center sits below its box center
+     (the "s"/"o" bowls overshoot the baseline but nothing rises past the dot),
+     so a true vertical centering reads low next to the uppercase tab labels. */
+  margin-top: -1px;
+}
+
+.panel-header.tabs .tab-brand svg {
+  display: block;
+  height: var(--silo-internal-wordmark-height);
+  /* Both axes stated outright rather than leaning on `width: auto` + the
+     viewBox's intrinsic ratio: WebKit doesn't derive that reliably for an
+     inline SVG, and the mark came out undersized *and* clipped along its right
+     and bottom edges. 1200/618 is the viewBox's own aspect, so this is the
+     same shape, just computed here instead of by the engine. */
+  width: calc(var(--silo-internal-wordmark-height) * 1200 / 618);
+  /* The UA default is `overflow: hidden`, which is what turned a few tenths of
+     a pixel of rounding into visibly flattened curves. */
+  overflow: visible;
+}
+
 .panel-header.tabs .tab {
   height: 100%;
   padding: 0 14px;
