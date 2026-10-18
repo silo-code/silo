@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.77.0](https://github.com/silo-code/silo/compare/silo-v0.76.0...silo-v0.77.0) (2026-10-18)
+
+
+### Features
+
+* **sidedock:** show the Silo wordmark at the head of the left dock's tabs ([#641](https://github.com/silo-code/silo/issues/641)) ([539e955](https://github.com/silo-code/silo/commit/539e955ba2db8404ab895caa29fc5232b61cbb7c))
+
+
+### Bug Fixes
+
+* **dock:** let an inactive tab's title use the full tab width ([#639](https://github.com/silo-code/silo/issues/639)) ([267e638](https://github.com/silo-code/silo/commit/267e6388a3a5e55bdf586b0b8fdd98f07db814bc))
+
 ## [0.76.0](https://github.com/silo-code/silo/compare/silo-v0.75.0...silo-v0.76.0) (2026-10-17)
 
 
