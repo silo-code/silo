@@ -770,3 +770,38 @@
 .editor-dock.dockview-theme-light .dv-tab.dv-active-tab .dv-default-tab-action {
   color: var(--silo-content-tab-text-active);
 }
+
+/* Let an inactive tab's title use the whole tab.
+ *
+ * Dockview hides the close button on an inactive tab with `visibility:
+ * hidden` and reveals it on hover — but hidden-by-visibility still takes its
+ * box, so ~24px at the right of every inactive tab is reserved for a button
+ * that isn't painted, and the title's ellipsis stops short of the tab edge
+ * for no visible reason. Taking the button out of flow there gives the label
+ * that space back; on hover the button comes back over the label's tail
+ * rather than pushing it, so nothing reflows and the ellipsis doesn't move.
+ * The label fades out underneath it (mask) instead of colliding with it.
+ *
+ * The **active** tab keeps the button in flow: it's permanently visible
+ * there, so an overlay would permanently sit on the title.
+ *
+ * `.dv-default-tab` is `position: relative` in dockview's own stylesheet, so
+ * the offsets are from the label row; `right: -2px` matches the in-flow
+ * button's `margin-right`, and `inset-block: 0` + `margin-block: auto`
+ * centers it without a `transform` the `:active` press-scale would clobber. */
+.editor-dock .dv-tab.dv-inactive-tab .dv-default-tab .dv-default-tab-action {
+  position: absolute;
+  right: -2px;
+  inset-block: 0;
+  margin: auto 0;
+}
+.editor-dock
+  .dv-tab.dv-inactive-tab
+  .dv-default-tab:hover
+  .dv-default-tab-content {
+  mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - 26px),
+    transparent calc(100% - 6px)
+  );
+}
