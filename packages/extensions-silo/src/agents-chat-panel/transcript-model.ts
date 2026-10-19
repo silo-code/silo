@@ -27,6 +27,8 @@
 import type {
   AgentBackgroundTaskState,
   AgentDelegationState,
+  AgentElicitationQuestion,
+  AgentElicitationResolution,
   AgentPlanEntry,
   AgentSessionUpdate,
   AgentToolCall,
@@ -133,6 +135,43 @@ export interface PlanEntry {
   readonly rows: readonly PlanRow[];
 }
 
+/**
+ * A **question the agent asked** (RFC 0062), as a row of history rather than
+ * a live request.
+ *
+ * Projected from the Silo-synthesized `"elicitation"` /
+ * `"elicitation_resolution"` updates, which is how a question reaches the
+ * transcript journal at all — the Agent Client Protocol never echoes
+ * `elicitation/create` into the session stream. The row is what lets a
+ * reloaded conversation still show that the agent asked something and say how
+ * it ended, where before the card simply vanished and the transcript ended
+ * mid-air.
+ *
+ * While the matching request is *live* the panel renders its interactive card
+ * instead and suppresses this row — same question, one place on screen. The
+ * join is {@link elicitationId}.
+ */
+export interface QuestionEntry {
+  readonly type: "question";
+  readonly key: string;
+  /** Joins this row to {@link AgentElicitationRequest.id}. */
+  readonly elicitationId: string;
+  readonly message: string;
+  readonly questions: readonly AgentElicitationQuestion[];
+  /** The agent's schema named no fields — there was nothing to answer, only
+   *  something to acknowledge. */
+  readonly acknowledgeOnly: boolean;
+  /**
+   * How it ended. `undefined` means the question is **still open**: a live
+   * session mid-ask, or the brief instant-paint window on a restore — that
+   * effect paints the journal straight off disk *before* `connect()` has
+   * swept it, so an unresolved row can appear for a moment and then gain its
+   * `"interrupted"` resolution when the connected session's journal replaces
+   * it. Settled by the time anything can be done about it either way.
+   */
+  readonly resolution?: AgentElicitationResolution;
+}
+
 /** A line of Silo's own commentary in the flow of the transcript — a stop
  *  reason worth reporting, a connection that dropped. Never from the agent. */
 export interface NoticeEntry {
@@ -146,6 +185,7 @@ export type TranscriptEntry =
   | MessageEntry
   | ToolEntry
   | PlanEntry
+  | QuestionEntry
   | NoticeEntry;
 
 /** A run of {@link TOOL_GROUP_THRESHOLD}+ consecutive non-diff tool calls,
@@ -558,6 +598,60 @@ export function applyUpdate(
   t: Transcript,
   update: AgentSessionUpdate,
 ): Transcript {
+  // A question (RFC 0062), in two frames: the ask opens a row, and its
+  // resolution patches that row in place. Patched rather than appended
+  // because they are one event in the conversation — the user was asked
+  // something and it ended somehow — and because a resolution arriving for a
+  // row that is not here is nothing a reader could be shown.
+  // Keyed off `kind`, not off the presence of `elicitation`: the field is a
+  // public optional on every `AgentSessionUpdate`, so a producer could attach
+  // it to a frame that *also* carries text or a tool call. Returning early on
+  // the field alone would silently swallow that frame's real content.
+  const elicitation =
+    update.kind === "elicitation" || update.kind === "elicitation_resolution"
+      ? update.elicitation
+      : undefined;
+  if (elicitation?.id) {
+    const id = elicitation.id;
+    if (update.kind === "elicitation_resolution") {
+      const resolution = elicitation.resolution;
+      if (!resolution) return t;
+      let found = false;
+      const entries = t.entries.map((e) => {
+        if (e.type !== "question" || e.elicitationId !== id) return e;
+        found = true;
+        return { ...e, resolution };
+      });
+      return found ? { ...t, entries } : t;
+    }
+    // Idempotent: a journal replay can hand the same ask over twice (the
+    // seed plus a live frame), and one question must never become two rows.
+    if (
+      t.entries.some((e) => e.type === "question" && e.elicitationId === id)
+    ) {
+      return t;
+    }
+    const seq = t.seq + 1;
+    return {
+      ...t,
+      seq,
+      entries: [
+        ...t.entries,
+        {
+          type: "question",
+          key: `q${seq}`,
+          elicitationId: id,
+          message: elicitation.message ?? "",
+          questions: elicitation.questions ?? [],
+          acknowledgeOnly: elicitation.acknowledgeOnly ?? false,
+          ...(elicitation.resolution
+            ? { resolution: elicitation.resolution }
+            : {}),
+        },
+      ],
+    };
+  }
+
   // A delegated worker's lifecycle (RFC 0057). Not a row of its own — a
   // worker appearing is not news, and its finishing is news *about the
   // dispatch row that already exists*. Last-write-wins: the agent re-announces

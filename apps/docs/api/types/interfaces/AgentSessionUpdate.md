@@ -160,13 +160,35 @@ notification at all — see [AgentSessionUsage](AgentSessionUsage.md).
 
 ***
 
+### elicitation?
+
+```ts
+readonly optional elicitation?: AgentElicitationRecord;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1179](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1179)
+
+**`Beta`**
+
+The question the agent asked, for the Silo-synthesized kinds
+`"elicitation"` (it was asked) and `"elicitation_resolution"` (how it
+ended); `undefined` otherwise.
+
+Synthesized rather than read off the wire, like the `user_message_chunk`
+[timestamp](#timestamp), and for the same reason: `elicitation/create` is a
+*request* the Agent Client Protocol never echoes into the session stream,
+so without this a question would leave no trace in the transcript journal
+and could not survive a replay (RFC 0062).
+
+***
+
 ### subagentId?
 
 ```ts
 readonly optional subagentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1189](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1189)
+Defined in: [packages/sdk/src/agents-service.ts:1201](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1201)
 
 **`Beta`**
 
@@ -198,7 +220,7 @@ always has.
 readonly optional delegation?: AgentDelegation;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1205](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1205)
+Defined in: [packages/sdk/src/agents-service.ts:1217](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1217)
 
 **`Beta`**
 
@@ -224,7 +246,7 @@ protocol replaces the vendor extension underneath.
 readonly optional backgroundTask?: AgentBackgroundTask;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1222)
+Defined in: [packages/sdk/src/agents-service.ts:1234](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1234)
 
 **`Beta`**
 
@@ -251,7 +273,7 @@ replaces the vendor extension underneath.
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1242](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1242)
+Defined in: [packages/sdk/src/agents-service.ts:1254](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1254)
 
 **`Beta`**
 

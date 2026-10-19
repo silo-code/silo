@@ -1,6 +1,6 @@
 # Interface: AgentElicitationRequest
 
-Defined in: [packages/sdk/src/agents-service.ts:1442](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1442)
+Defined in: [packages/sdk/src/agents-service.ts:1510](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1510)
 
 **`Beta`**
 
@@ -24,13 +24,30 @@ extension's behalf so the agent is never left hanging.
 
 ## Properties
 
+### id
+
+```ts
+readonly id: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1517](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1517)
+
+**`Beta`**
+
+Identifies this request within its session — the id the matching
+[AgentElicitationRecord](AgentElicitationRecord.md) is journaled under. A UI that renders both
+the live card and the transcript row joins them on this, so one question
+is never drawn twice.
+
+***
+
 ### message
 
 ```ts
 readonly message: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1445](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1445)
+Defined in: [packages/sdk/src/agents-service.ts:1520](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1520)
 
 **`Beta`**
 
@@ -45,7 +62,7 @@ The human-readable ask. For a single-question form this *is* the
 readonly questions: readonly AgentElicitationQuestion[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1447](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1447)
+Defined in: [packages/sdk/src/agents-service.ts:1522](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1522)
 
 **`Beta`**
 
@@ -59,7 +76,7 @@ The questions to put to the user, in the agent's order.
 readonly acknowledgeOnly: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1453](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1453)
+Defined in: [packages/sdk/src/agents-service.ts:1528](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1528)
 
 **`Beta`**
 
@@ -75,7 +92,7 @@ field to answer, an empty answer is the complete and correct reply.
 readonly optional toolCallId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1456](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1456)
+Defined in: [packages/sdk/src/agents-service.ts:1531](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1531)
 
 **`Beta`**
 
@@ -90,7 +107,7 @@ The tool call this question belongs to, when the agent sent one — the
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1459](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1459)
+Defined in: [packages/sdk/src/agents-service.ts:1534](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1534)
 
 **`Beta`**
 
@@ -105,7 +122,7 @@ The raw Agent Client Protocol `elicitation/create` params, including
 respond(answers): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1468](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1468)
+Defined in: [packages/sdk/src/agents-service.ts:1543](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1543)
 
 **`Beta`**
 
@@ -134,7 +151,7 @@ the first call wins and later ones are ignored.
 decline(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1474](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1474)
+Defined in: [packages/sdk/src/agents-service.ts:1549](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1549)
 
 **`Beta`**
 
@@ -154,7 +171,7 @@ decision, never Silo's.
 cancel(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1480](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1480)
+Defined in: [packages/sdk/src/agents-service.ts:1555](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1555)
 
 **`Beta`**
 

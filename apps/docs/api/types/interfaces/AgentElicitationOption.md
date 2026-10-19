@@ -1,6 +1,6 @@
 # Interface: AgentElicitationOption
 
-Defined in: [packages/sdk/src/agents-service.ts:1313](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1313)
+Defined in: [packages/sdk/src/agents-service.ts:1325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1325)
 
 **`Beta`**
 
@@ -15,7 +15,7 @@ One choice in an [AgentElicitationQuestion](AgentElicitationQuestion.md) of kind
 readonly value: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1315](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1315)
+Defined in: [packages/sdk/src/agents-service.ts:1327](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1327)
 
 **`Beta`**
 
@@ -29,7 +29,7 @@ The value to send back as the answer.
 readonly label: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1318)
+Defined in: [packages/sdk/src/agents-service.ts:1330](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1330)
 
 **`Beta`**
 
@@ -44,7 +44,7 @@ What to show the user. Falls back to [value](#value) when the agent gave
 readonly optional description?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1320](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1320)
+Defined in: [packages/sdk/src/agents-service.ts:1332](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1332)
 
 **`Beta`**
 

@@ -310,6 +310,18 @@ describe("startedBlocking", () => {
       ),
     ).toBe(false);
   });
+
+  // RFC 0062 follow-up: a restored block is a state being remembered, not
+  // entered. Chiming for it would sound a notification at startup for a
+  // question the agent asked hours ago.
+  it("does not fire for a restored block (stale)", () => {
+    expect(
+      startedBlocking(
+        agent({ activity: "idle" }),
+        agent({ activity: "blocked", stale: true }),
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("staleSuffix", () => {

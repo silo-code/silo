@@ -81,6 +81,102 @@ export function parseJournalLines(
   return out;
 }
 
+/** The Silo-synthesized journal kind opening a question row (RFC 0062). */
+export const ELICITATION_KIND = "elicitation";
+/** The Silo-synthesized journal kind closing one. */
+export const ELICITATION_RESOLUTION_KIND = "elicitation_resolution";
+
+function elicitationId(update: AgentSessionUpdate): string | undefined {
+  const id = update.elicitation?.id;
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+}
+
+/**
+ * The ids of questions this journal records as **asked and never resolved** —
+ * the signature of a session that went away mid-question (RFC 0062
+ * follow-up). In arrival order, deduplicated.
+ *
+ * Read off the lines rather than the parsed updates so a caller can reuse the
+ * exact original line, which is what {@link unresolvedElicitationLines} needs.
+ */
+export function unresolvedElicitationIds(
+  lines: readonly string[],
+): readonly string[] {
+  const asked: string[] = [];
+  const resolved = new Set<string>();
+  for (const update of parseJournalLines(lines)) {
+    const id = elicitationId(update);
+    if (id === undefined) continue;
+    if (update.kind === ELICITATION_KIND) {
+      if (!asked.includes(id)) asked.push(id);
+    } else if (update.kind === ELICITATION_RESOLUTION_KIND) {
+      resolved.add(id);
+    }
+  }
+  return asked.filter((id) => !resolved.has(id));
+}
+
+/**
+ * The opening lines of this journal's unresolved questions, verbatim.
+ *
+ * For the one path that would otherwise lose them: `session/load` **replaces**
+ * the journal with the agent's own replay (see
+ * {@link backfillUserPromptTimestamps}), and that replay contains no
+ * elicitations — `elicitation/create` is a request the Agent Client Protocol
+ * never echoes into the session stream. Carrying the unresolved ones across
+ * the replacement is what keeps "the agent asked you something and never got
+ * an answer" from being silently erased by the very restore meant to bring the
+ * conversation back.
+ *
+ * Resolved questions are deliberately *not* carried: the replay is the agent's
+ * account of the conversation, and a question that was answered has already
+ * had its effect on it.
+ */
+export function unresolvedElicitationLines(lines: readonly string[]): string[] {
+  const wanted = new Set(unresolvedElicitationIds(lines));
+  if (wanted.size === 0) return [];
+  const out: string[] = [];
+  for (const line of lines) {
+    let parsed: AgentSessionUpdate;
+    try {
+      parsed = JSON.parse(line) as AgentSessionUpdate;
+    } catch {
+      continue;
+    }
+    if (parsed?.kind !== ELICITATION_KIND) continue;
+    const id = elicitationId(parsed);
+    if (id !== undefined && wanted.has(id)) out.push(line);
+  }
+  return out;
+}
+
+/**
+ * Close every unresolved question in this journal as `"interrupted"`, the
+ * resolution Silo writes on its own behalf: the question was still open when
+ * the session went away, so no answer ever reached the agent.
+ *
+ * Returns `null` when there was nothing to close, so a caller can skip the
+ * rewrite entirely — the overwhelmingly common case.
+ *
+ * Appended at the end rather than next to the row it closes, because that is
+ * the honest position: being interrupted is the last thing that happened to
+ * this conversation, and it happened after everything else in the file.
+ */
+export function closeUnresolvedElicitations(
+  lines: readonly string[],
+): { lines: string[]; ids: readonly string[] } | null {
+  const ids = unresolvedElicitationIds(lines);
+  if (ids.length === 0) return null;
+  const closed = ids.map((id) =>
+    JSON.stringify({
+      kind: ELICITATION_RESOLUTION_KIND,
+      elicitation: { id, resolution: "interrupted" },
+      raw: { synthesized: true },
+    } satisfies AgentSessionUpdate),
+  );
+  return { lines: [...lines, ...closed], ids };
+}
+
 /**
  * Restore a `session/load` replay's missing `user_message_chunk.timestamp`
  * from what the journal already had on disk before the reconnect.

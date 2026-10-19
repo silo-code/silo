@@ -1,6 +1,6 @@
 # Interface: AgentElicitationQuestion
 
-Defined in: [packages/sdk/src/agents-service.ts:1372](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1372)
+Defined in: [packages/sdk/src/agents-service.ts:1384](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1384)
 
 **`Beta`**
 
@@ -14,7 +14,7 @@ One question in an [AgentElicitationRequest](AgentElicitationRequest.md).
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1375](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1375)
+Defined in: [packages/sdk/src/agents-service.ts:1387](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1387)
 
 **`Beta`**
 
@@ -29,7 +29,7 @@ Identifies the question when answering — the key in the map passed to
 readonly kind: AgentElicitationQuestionKind;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1377](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1377)
+Defined in: [packages/sdk/src/agents-service.ts:1389](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1389)
 
 **`Beta`**
 
@@ -43,7 +43,7 @@ Which control to render.
 readonly prompt: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1380](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1380)
+Defined in: [packages/sdk/src/agents-service.ts:1392](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1392)
 
 **`Beta`**
 
@@ -58,7 +58,7 @@ The question to show. Never empty; for a single-question form this is
 readonly optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1382](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1382)
+Defined in: [packages/sdk/src/agents-service.ts:1394](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1394)
 
 **`Beta`**
 
@@ -72,7 +72,7 @@ A short header to show above [prompt](#prompt), when the agent gave one.
 readonly optional options?: readonly AgentElicitationOption[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1385)
+Defined in: [packages/sdk/src/agents-service.ts:1397](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1397)
 
 **`Beta`**
 
@@ -87,7 +87,7 @@ The choices, for `"select"` / `"multi-select"`. Never empty when
 readonly optional custom?: AgentElicitationCustomAnswer;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1387](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1387)
+Defined in: [packages/sdk/src/agents-service.ts:1399](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1399)
 
 **`Beta`**
 

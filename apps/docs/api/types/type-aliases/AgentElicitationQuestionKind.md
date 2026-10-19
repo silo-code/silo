@@ -4,7 +4,7 @@
 type AgentElicitationQuestionKind = "select" | "multi-select" | "text" | "boolean" | "number";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1335](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1335)
+Defined in: [packages/sdk/src/agents-service.ts:1347](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1347)
 
 **`Beta`**
 

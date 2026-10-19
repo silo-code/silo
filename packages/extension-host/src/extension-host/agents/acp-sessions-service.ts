@@ -24,7 +24,9 @@
 import type {
   AgentCommand,
   AgentContentBlock,
+  AgentElicitationRecord,
   AgentElicitationRequest,
+  AgentElicitationResolution,
   AgentInfo,
   AgentPermissionRequest,
   AgentPromptBlock,
@@ -68,7 +70,10 @@ import {
   setChatAgentControls,
 } from "./chat-agent-registry";
 import { getActiveAgentSession } from "./agent-surface-registry";
-import { noteChatSessionConfigDir } from "./chat-session-restore";
+import {
+  noteChatSessionBlockedOnQuestion,
+  noteChatSessionConfigDir,
+} from "./chat-session-restore";
 import { createWorkingCheckoutTracker } from "./working-checkout";
 import { fsPathExists } from "../../services/tauri-fs";
 import {
@@ -93,10 +98,14 @@ import {
 } from "./agent-turn-model";
 import {
   backfillUserPromptTimestamps,
+  closeUnresolvedElicitations,
   createJournalWriter,
   deleteJournalFile,
+  ELICITATION_KIND,
+  ELICITATION_RESOLUTION_KIND,
   parseJournalLines,
   readJournalLines,
+  unresolvedElicitationLines,
   type ChatSessionJournalWriter,
 } from "./chat-session-journal";
 import { backgroundTaskEvent } from "./chat-background-tasks";
@@ -638,6 +647,13 @@ export function createAgentSessionsService(
       // moves. Kept in step by `tracked` / `releaseJournalWriter`.
       let journalWriterId: string | null = null;
       let userMsgSeq = 0;
+      /**
+       * Questions asked and not yet resolved, by id, each with the one call
+       * that strands them honestly (see `dispose()`). The map is the session's
+       * memory of "the agent is waiting on an answer", which before RFC 0062's
+       * follow-up existed nowhere outside the panel's React state.
+       */
+      const pendingElicitations = new Map<string, { interrupt: () => void }>();
       // --- agent-initiated turn tracking (see `chat-turn-signals.ts`) -------
       // A turn the host asked for is owned by its `prompt()` call, start to
       // end. Anything arriving while this is zero belongs to a turn the agent
@@ -855,6 +871,29 @@ export function createAgentSessionsService(
       }
 
       /**
+       * Journal and publish an update **Silo itself** is the author of, with
+       * none of {@link publishUpdate}'s wire bookkeeping: no
+       * `AcpSessionUpdate` to narrow, and nothing for the working-checkout
+       * tracker to learn from an event the agent never sent.
+       *
+       * The one kind so far is a question's journal row (RFC 0062 follow-up).
+       * `elicitation/create` is a *request*, not a `session/update`, so
+       * nothing about it would otherwise reach the transcript — and a question
+       * that leaves no row cannot survive a reload, which is the whole defect
+       * this exists to close.
+       */
+      function publishSynthetic(update: AgentSessionUpdate): void {
+        journalWriter?.append(update);
+        for (const l of updateListeners) {
+          try {
+            l(update);
+          } catch (err) {
+            agentsChannel.debug(`chat session onUpdate listener threw: ${err}`);
+          }
+        }
+      }
+
+      /**
        * Raise the chrome for a turn **suspended on the user** — a permission
        * request (RFC 0038) or a question (RFC 0062). Both block the turn
        * identically, so both report the same `activity`.
@@ -867,11 +906,16 @@ export function createAgentSessionsService(
        * is corrected by `finishTurn`, which patches `activity` again as part
        * of ending the turn and supersedes whatever this left behind.
        */
-      function raiseBlockedOnUser(): void {
+      function raiseBlockedOnUser(since?: string): void {
         if (getActiveAgentSession() !== infoId) {
           patchChatAgent(infoId, {
             needsAttention: true,
-            attentionSince: nowIso(),
+            // `since` is passed only by the restore path, which knows when the
+            // block actually started. Re-stamping it with `nowIso()` there
+            // would re-date an hours-old question to the moment Silo reopened —
+            // the exact re-dating `restoredActivity` preserves
+            // `attentionSince` to prevent (RFC 0056).
+            attentionSince: since ?? nowIso(),
           });
         }
         patchChatAgent(infoId, { activity: "blocked" });
@@ -1044,12 +1088,58 @@ export function createAgentSessionsService(
             respond({ action: "cancel" });
             return;
           }
-          let answered = false;
-          const sdkReq = toSdkElicitation(request, (outcome) => {
-            answered = true;
+          // Unique by construction, not by counter. The id is the **join key**
+          // between the two journal rows and the live card, and the journal
+          // outlives any one connection — so a per-connection counter restarts
+          // at 1 over a file that already holds a `q1`, and the next question
+          // silently inherits the previous one's row: the new ask is dropped by
+          // `applyUpdate`'s idempotency guard, and answering it rewrites the
+          // *old* row's outcome. (The `userMsgSeq` pattern this first copied is
+          // safe only because nothing joins on a user message's id.)
+          const id = crypto.randomUUID();
+          /** Settle this question exactly once, whoever gets there first — the
+           *  user, an extension, or `dispose()` stranding it. Journals the
+           *  outcome before replying, so the row is on disk even if the reply
+           *  is the last thing this session does. */
+          let settled = false;
+          const finish = (
+            resolution: AgentElicitationResolution,
+            outcome: AcpElicitationOutcome,
+          ): boolean => {
+            if (settled) return false;
+            settled = true;
+            pendingElicitations.delete(id);
+            noteChatSessionBlockedOnQuestion(infoId, false);
+            publishSynthetic({
+              kind: ELICITATION_RESOLUTION_KIND,
+              elicitation: { id, resolution },
+              raw: { synthesized: true },
+            });
             respond(outcome);
+            return true;
+          };
+          let answered = false;
+          const sdkReq = toSdkElicitation(request, id, (outcome) => {
+            answered = true;
+            if (!finish(resolutionOf(outcome), outcome)) return;
             clearBlockedOnUser();
           });
+          // Journal the ask **before** dispatching it, so a listener that
+          // answers synchronously (or throws) still leaves the question in the
+          // transcript, and its resolution row lands after it rather than
+          // before a row that does not exist yet.
+          publishSynthetic({
+            kind: ELICITATION_KIND,
+            elicitation: toElicitationRecord(id, sdkReq),
+            raw: { synthesized: true },
+          });
+          pendingElicitations.set(id, {
+            interrupt: () => finish("interrupted", { action: "cancel" }),
+          });
+          // What a restore reads to tell a question's block apart from a
+          // permission request's — only the former leaves a journal row and a
+          // transcript the user can act on. See `restoredActivity`.
+          noteChatSessionBlockedOnQuestion(infoId, true);
           for (const l of elicitationListeners) {
             try {
               l(sdkReq);
@@ -1323,7 +1413,15 @@ export function createAgentSessionsService(
               priorLines,
               replayedLines,
             );
-            writer.replaceLines(corrected);
+            // The replay is the agent's own account of the conversation and
+            // carries no questions — ACP never echoes `elicitation/create`
+            // into the session stream — so an unanswered one would be erased
+            // by the very restore meant to bring the conversation back. Carry
+            // it over; the sweep below is what then marks it interrupted.
+            writer.replaceLines([
+              ...corrected,
+              ...unresolvedElicitationLines(priorLines),
+            ]);
             if (attempt.sessionId !== resumeTarget.sessionId) {
               const captured = writer.snapshotLines();
               writer.dispose();
@@ -1384,6 +1482,20 @@ export function createAgentSessionsService(
       configOptions = toSdkConfigOptions(session.configOptions ?? []);
       const canResume = canLoadSession || canResumeCap;
       const agentName = init.agentInfo?.title ?? init.agentInfo?.name ?? label;
+      // A question the journal records as asked and never answered means the
+      // last thing that happened to this conversation was it waiting on the
+      // user — and then the session went away without anything getting to run
+      // (the webview-reload case, where no `dispose()` ever fires). Close it
+      // as `"interrupted"` so the restored transcript says so, and remember
+      // to put the session back into `blocked` once it is registered.
+      const swept = closeUnresolvedElicitations(journalWriter.snapshotLines());
+      if (swept) {
+        journalWriter.replaceLines(swept.lines);
+        agentsChannel.info(
+          `Chat session ${persistSessionId} restored with ${swept.ids.length} unanswered question(s) — marked interrupted.`,
+        );
+      }
+      const restoredBlockedOnUser = swept !== null;
       const journal = parseJournalLines(journalWriter.snapshotLines());
       // Replay the restored transcript through the tracker so a resumed
       // session knows where it was working without waiting for the agent to
@@ -1471,7 +1583,11 @@ export function createAgentSessionsService(
               linesBeforeResume,
               replayedLines,
             );
-            prior.replaceLines(corrected);
+            // Same carry-over as the `connect()` load path — see there.
+            prior.replaceLines([
+              ...corrected,
+              ...unresolvedElicitationLines(linesBeforeResume),
+            ]);
             if (attempt.sessionId !== acpSessionId) {
               const captured = prior.snapshotLines();
               prior.dispose();
@@ -1531,6 +1647,25 @@ export function createAgentSessionsService(
         reveal,
         resume: canResume ? resume : undefined,
       });
+      noteChatSessionBlockedOnQuestion(infoId, restoredBlockedOnUser);
+      if (restoredBlockedOnUser) {
+        // Put the session back where the user left it: still waiting on them.
+        // `blocked` is the one activity that survives a restart, because its
+        // claim is about the **conversation** and not about a live process —
+        // "this turn needs you" is as true now as it was before the reload,
+        // which is exactly what `working` cannot say (see `restoredActivity`).
+        //
+        // `stale` rides along, and carries real weight: it appends
+        // "(unconfirmed since restart)" to the tab tooltip, and it is what
+        // keeps `startedBlocking` from chiming — an hours-old question must
+        // not sound a notification the moment Silo starts.
+        // The persisted record, not the registry: by this point the
+        // placeholder registration has already replaced whatever the dormant
+        // entry held, so the store is the only thing that still knows when
+        // the agent actually started waiting.
+        raiseBlockedOnUser(priorStatus?.attentionSince);
+        patchChatAgent(infoId, { stale: true });
+      }
       // Now that the session is registered under its real id, let the journal
       // replay above settle onto `AgentInfo.cwd`.
       resolveCheckout();
@@ -1732,6 +1867,20 @@ export function createAgentSessionsService(
           if (disposed) return;
           disposed = true;
           clearQuiescence();
+          // Any question still open is now unanswerable: this handle owns the
+          // only reply path to the agent. Journal it as `"interrupted"` and
+          // cancel the request, in that order — the row must be written while
+          // `journalWriter` is still live (the teardown flush below is what
+          // gets it to disk), and leaving the agent child blocked on a reply
+          // nobody will ever send is how this path used to orphan processes.
+          //
+          // Note what this does *not* cover: a webview reload never runs any
+          // cleanup at all, so the connect-time sweep in `connect()` is the
+          // real backstop. This is the graceful half — closing the panel,
+          // switching profiles, resetting the session.
+          const stranded = [...pendingElicitations.values()];
+          pendingElicitations.clear();
+          for (const p of stranded) p.interrupt();
           const writer = journalWriter;
           const writerId = journalWriterId;
           // Deliberately *not* `releaseJournalWriter()` here. The invariant
@@ -1876,8 +2025,35 @@ function toSdkPermission(
  * difference between an answer the agent reads and a payload its validating
  * guard discards wholesale.
  */
+/** How a settled {@link AcpElicitationOutcome} reads in the transcript. The
+ *  fourth resolution, `"interrupted"`, has no outcome: it is what Silo records
+ *  when the session goes away with the question still open. */
+function resolutionOf(
+  outcome: AcpElicitationOutcome,
+): AgentElicitationResolution {
+  if (outcome.action === "accept") return "answered";
+  if (outcome.action === "decline") return "skipped";
+  return "cancelled";
+}
+
+/** The journalable half of a live request — everything but its three methods
+ *  (see {@link AgentElicitationRecord}). */
+function toElicitationRecord(
+  id: string,
+  req: AgentElicitationRequest,
+): AgentElicitationRecord {
+  return {
+    id,
+    message: req.message,
+    questions: req.questions,
+    acknowledgeOnly: req.acknowledgeOnly,
+    ...(req.toolCallId !== undefined ? { toolCallId: req.toolCallId } : {}),
+  };
+}
+
 function toSdkElicitation(
   req: AcpElicitationRequest,
+  id: string,
   respond: (outcome: AcpElicitationOutcome) => void,
 ): AgentElicitationRequest {
   // First call wins, across all three methods. The protocol layer dedupes the
@@ -1891,6 +2067,7 @@ function toSdkElicitation(
     respond(outcome);
   };
   return {
+    id,
     message: req.message,
     questions: req.questions,
     acknowledgeOnly: req.acknowledgeOnly,

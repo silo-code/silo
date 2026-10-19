@@ -1020,6 +1020,36 @@
   gap: 6px;
 }
 
+/* The settled twin: history, not an ask. Tighter and without controls — see
+   the `question` branch of `renderTranscriptEntry`. Quieter than the live
+   card, but *what was asked* stays at full contrast: a row nobody can read is
+   no better than the vanished card it replaced. */
+.acp-chat__question[data-settled] {
+  gap: 4px;
+}
+
+.acp-chat__question[data-settled] .acp-chat__question-title {
+  font-weight: 500;
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__question-asked {
+  overflow-wrap: anywhere;
+}
+
+.acp-chat__question-outcome {
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text-lo);
+}
+
+/* An unanswered question is the one outcome the user may still need to act on,
+   so it carries the attention accent — on the line that says so, not as a rule
+   down the side of the card. A left border inherits the card's radius and
+   renders as a rounded sliver (Dave, 2026-10-19). */
+.acp-chat__question[data-resolution="interrupted"] .acp-chat__question-outcome {
+  color: var(--silo-color-warn);
+}
+
 /* --- composer ----------------------------------------------------------- */
 
 .acp-chat__composer {

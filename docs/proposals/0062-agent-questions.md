@@ -186,6 +186,90 @@ argument for the live run being a requirement rather than a formality.
 Each phase also ran a vacuity check (break a branch, watch the matching test
 fail, restore), which closed three tests that could not have failed.
 
+## Follow-up: an unanswered question survives a reload
+
+Shipped behavior had a gap this proposal never addressed. A pending question
+lived only in the panel's React state and the journal records
+`AgentSessionUpdate`s, so a webview refresh or an app restart dropped the card
+with **no trace in the transcript** — the replayed conversation ended mid-air
+and the session came back `idle`. The user was not told that they were the
+thing the turn was waiting on. ([#642](https://github.com/silo-code/silo/issues/642))
+
+A question cannot be _re-answered_ after a reload — `respond` is a live
+JSON-RPC reply to a process that is gone, and a session resumed with
+`session/load` has no pending request to answer. So what is preserved is the
+**state**, not the interaction: the question is journaled when it arrives,
+repainted read-only, and the session still reads as waiting on the user until
+the next prompt.
+
+- **Journal the question on arrival, not on loss.** Two Silo-synthesized
+  updates — `"elicitation"` (asked) and `"elicitation_resolution"` (how it
+  ended) — both carrying the new public `AgentElicitationRecord` on
+  `AgentSessionUpdate.elicitation`, which is `AgentElicitationRequest` with its
+  three methods removed: precisely what can be written down. Follows the
+  synthesized `user_message_chunk` precedent, which exists for this same
+  survive-a-replay reason. Writing the row when the card is _lost_ was
+  rejected: a reload is exactly the path where no code of ours gets to run.
+- **A fourth resolution, `"interrupted"`.** The one Silo writes on its own
+  behalf. `connect()` sweeps the journal for a question asked and never
+  resolved and closes it as interrupted on the way back in — which is what
+  covers the reload, where nothing else runs. `dispose()` covers the graceful
+  half (closing the panel, switching profiles) and also **cancels the live
+  request**, so the agent child is not left blocking on a reply nobody will
+  send; before this, that path orphaned processes.
+- **`session/load` has to carry questions across its own replay.** A load
+  _replaces_ the journal with the agent's account of the conversation, which
+  contains no elicitations — ACP never echoes `elicitation/create` into the
+  session stream. Unresolved ones are carried over explicitly, or the restore
+  meant to bring the conversation back is what erases the question.
+- **A question's id must be unique over the _journal_, not the connection.**
+  It is the join key between the two rows and the live card, so a
+  per-connection counter (the `userMsgSeq` pattern) restarts at 1 over a file
+  that already holds a `q1`: the next question inherits the previous one's row,
+  the new ask is dropped by the transcript's idempotency guard, and answering
+  it rewrites the _old_ row's outcome. `crypto.randomUUID()` — unique by
+  construction rather than by bookkeeping. Caught in review; the hole was that
+  every test asked exactly once.
+- **`blocked` survives a restart, where `working` does not.**
+  `restoredActivity` otherwise refuses to restore any activity describing a
+  live process. `blocked` is the one value whose claim is about the
+  **conversation** — "this turn needs you" is still true with the process
+  gone — so it survives, which is also why widening `blocked` rather than
+  forking it keeps paying off. The conservative alternative (stay `idle` and
+  lean on `needsAttention`, which already survives) was rejected: it loses the
+  "Waiting for you" tooltip and the amber row, which is the signal the user
+  actually reads. It comes back `stale` too, and that carries weight —
+  `staleSuffix` appends "(unconfirmed since restart)", and `startedBlocking`
+  now ignores a stale block, so an hours-old question cannot chime at startup.
+  It restores on `blockedOnQuestion`, **not on `activity` alone**: a permission
+  request raises the same `blocked` and leaves no journal row, so restoring
+  that one would show a session waiting on an answer with nothing in the
+  transcript to answer and nothing to clear it — deeper than the hole it was
+  meant to leave alone. And the re-raise carries the **persisted**
+  `attentionSince` rather than stamping `now`, or every restart re-dates an
+  hours-old question to the moment Silo reopened (RFC 0056's rule again).
+- **One question, one place on screen.** The panel renders the interactive card
+  while the request is live and the transcript row once it settles, joined on
+  the new `AgentElicitationRequest.id`. The row is deliberately not the same
+  component: real controls over a request that no longer exists would offer the
+  user an action that silently does nothing. It shows the prompts, not the
+  options — a choice nobody can pick is noise — and says what to do instead
+  ("This was never answered — the agent never got a reply. Send a message to
+  carry on"). The wording deliberately names no cause: a reload is the common
+  one, but `dispose()` writes the same resolution for a closed panel, a
+  profile switch, or a session reset.
+
+Not carried over: **permission requests** have the same hole and keep it for
+now. They are a separate, older surface with no record of the options offered,
+and the fix is only worth copying once this one has been lived with. The
+restore is narrowed to `blockedOnQuestion` precisely so that leaving it alone
+stays _leaving it alone_ — a permission block still comes back `idle`.
+
+Verified the same way the original phases were: unit tests plus a **live run**
+against a real agent (ask, don't answer, reload — the question comes back on
+the record, the session comes back waiting on you, nothing chimes), and a
+vacuity check on every new branch.
+
 ## Deferred
 
 - **`url`-mode elicitation** and `elicitation/complete` — the MCP OAuth handoff.
@@ -196,5 +280,10 @@ fail, restore), which closed three tests that could not have failed.
 - **`boolean` / `number` controls are built but unexercised live.**
   `askUserQuestionsToCreateRequest` only ever emits single- and multi-select,
   so Claude cannot produce them; they would need an MCP server that elicits.
+- **The answers in the settled row.** A row resolved `"answered"` says that it
+  was answered, not what with — the resolution update carries no content. Cheap
+  to add (the `respond` payload is serializable) and deliberately left until
+  someone wants it, since the case that mattered was the one with no answer at
+  all.
 - **`blockedReason`** on `AgentInfo` — would let the status say _which_ kind of
   answer is wanted. Additive; deferred, not foreclosed.

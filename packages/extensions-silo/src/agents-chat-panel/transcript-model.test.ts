@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type {
+  AgentElicitationResolution,
   AgentPlanEntry,
   AgentSessionUpdate,
   AgentToolCall,
@@ -123,6 +124,133 @@ function other(kind: string): AgentSessionUpdate {
 function fold(updates: AgentSessionUpdate[], from = emptyTranscript) {
   return updates.reduce(applyUpdate, from);
 }
+
+/** The Silo-synthesized question row (RFC 0062 follow-up) — the ask. */
+function asked(
+  id: string,
+  over: Partial<NonNullable<AgentSessionUpdate["elicitation"]>> = {},
+): AgentSessionUpdate {
+  return {
+    kind: "elicitation",
+    elicitation: {
+      id,
+      message: "Which branch?",
+      questions: [{ id: "branch", kind: "select", prompt: "Which branch?" }],
+      acknowledgeOnly: false,
+      ...over,
+    },
+    raw: { synthesized: true },
+  };
+}
+
+/** …and how it ended. */
+function settled(
+  id: string,
+  resolution: AgentElicitationResolution,
+): AgentSessionUpdate {
+  return {
+    kind: "elicitation_resolution",
+    elicitation: { id, resolution },
+    raw: { synthesized: true },
+  };
+}
+
+describe("applyUpdate — questions (RFC 0062 follow-up)", () => {
+  it("opens a row for the ask, still unresolved", () => {
+    const t = fold([asked("q1")]);
+    expect(t.entries).toHaveLength(1);
+    expect(t.entries[0]).toMatchObject({
+      type: "question",
+      elicitationId: "q1",
+      message: "Which branch?",
+    });
+    expect(t.entries[0]).not.toHaveProperty("resolution");
+  });
+
+  it("patches that row in place when it resolves, rather than adding a second", () => {
+    const t = fold([asked("q1"), settled("q1", "answered")]);
+    expect(t.entries).toHaveLength(1);
+    expect(t.entries[0]).toMatchObject({
+      type: "question",
+      resolution: "answered",
+    });
+  });
+
+  it("records an interrupted question — the reload case the row exists for", () => {
+    const t = fold([asked("q1"), settled("q1", "interrupted")]);
+    expect(t.entries[0]).toMatchObject({ resolution: "interrupted" });
+  });
+
+  it("keeps the question in the flow of the conversation", () => {
+    const t = fold([
+      chunk("agent_message_chunk", "Before", "m1"),
+      asked("q1"),
+      chunk("agent_message_chunk", "After", "m2"),
+    ]);
+    expect(t.entries.map((e) => e.type)).toEqual([
+      "message",
+      "question",
+      "message",
+    ]);
+  });
+
+  it("is idempotent — a replay that re-delivers the ask does not double the row", () => {
+    const t = fold([asked("q1"), asked("q1")]);
+    expect(t.entries).toHaveLength(1);
+  });
+
+  it("gives two questions two keys, so neither collides in React", () => {
+    const t = fold([asked("q1"), asked("q2")]);
+    const keys = t.entries.map((e) => e.key);
+    expect(new Set(keys).size).toBe(2);
+  });
+
+  it("ignores a resolution for a question it never saw asked", () => {
+    const t = fold([settled("ghost", "answered")]);
+    expect(t.entries).toEqual([]);
+  });
+
+  it("drops a malformed row rather than rendering a blank question", () => {
+    expect(fold([{ kind: "elicitation", raw: {} }]).entries).toEqual([]);
+    expect(
+      fold([
+        asked("q1"),
+        { kind: "elicitation_resolution", elicitation: { id: "q1" }, raw: {} },
+      ]).entries[0],
+    ).not.toHaveProperty("resolution");
+  });
+
+  // `elicitation` is a public optional on every update, so a producer may
+  // attach it to a frame that also carries real content. Keying the branch off
+  // the field rather than the kind silently swallowed that frame.
+  it("does not swallow an ordinary update that happens to carry an elicitation", () => {
+    const t = fold([
+      {
+        kind: "agent_message_chunk",
+        text: "Still here",
+        elicitation: { id: "q1" },
+        raw: {},
+      },
+    ]);
+    expect(t.entries).toHaveLength(1);
+    expect(t.entries[0]).toMatchObject({ type: "message", text: "Still here" });
+  });
+
+  it("defaults the fields a long-ago row may not carry", () => {
+    const t = fold([
+      {
+        kind: "elicitation",
+        elicitation: { id: "q1" },
+        raw: {},
+      },
+    ]);
+    expect(t.entries[0]).toMatchObject({
+      message: "",
+      questions: [],
+      acknowledgeOnly: false,
+    });
+  });
+});
 
 describe("applyUpdate — streaming text", () => {
   it("groups consecutive chunks that share a messageId into one message", () => {

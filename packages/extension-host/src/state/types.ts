@@ -307,6 +307,18 @@ export interface PersistedChatSession {
    * yet" is still true after a restart.
    */
   activity: AgentActivity;
+  /**
+   * This session was blocked on a **question** specifically (RFC 0062), not on
+   * a permission request.
+   *
+   * The two share `activity: "blocked"` on purpose — nothing a consumer
+   * renders differs between them *live*. A restore is the one place they do
+   * differ: only a question leaves a journal row, so only a question comes
+   * back as something the user can see and act on. Restoring `blocked` for a
+   * permission request would show a session waiting on an answer with nothing
+   * in the transcript to answer and nothing to clear it.
+   */
+  blockedOnQuestion?: boolean;
   needsAttention: boolean;
   attentionSince?: string;
   /**

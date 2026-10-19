@@ -31,12 +31,15 @@ vi.mock("../../services/user-config", () => ({
 
 import {
   backfillUserPromptTimestamps,
+  closeUnresolvedElicitations,
   createJournalWriter,
   deleteJournalFile,
   parseJournalLines,
   pruneOrphanedChatJournals,
   readJournal,
   readJournalLines,
+  unresolvedElicitationIds,
+  unresolvedElicitationLines,
 } from "./chat-session-journal";
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -458,5 +461,97 @@ describe("subagent attribution round-trips", () => {
     expect(parsed).toHaveLength(1);
     expect("subagentId" in parsed[0]!).toBe(false);
     expect("delegation" in parsed[0]!).toBe(false);
+  });
+});
+
+describe("unresolved questions in a journal (RFC 0062 follow-up)", () => {
+  const asked = (id: string, message = `ask ${id}`) =>
+    JSON.stringify({
+      kind: "elicitation",
+      elicitation: { id, message, questions: [], acknowledgeOnly: false },
+      raw: {},
+    });
+  const resolved = (id: string, resolution: string) =>
+    JSON.stringify({
+      kind: "elicitation_resolution",
+      elicitation: { id, resolution },
+      raw: {},
+    });
+  const prose = JSON.stringify({
+    kind: "agent_message_chunk",
+    text: "hi",
+    raw: {},
+  });
+
+  it("finds a question that was asked and never resolved", () => {
+    expect(unresolvedElicitationIds([prose, asked("q1")])).toEqual(["q1"]);
+  });
+
+  it("ignores one that was answered, skipped or cancelled", () => {
+    for (const outcome of ["answered", "skipped", "cancelled"]) {
+      expect(
+        unresolvedElicitationIds([asked("q1"), resolved("q1", outcome)]),
+      ).toEqual([]);
+    }
+  });
+
+  it("reports only the open ones when a session asked several", () => {
+    const lines = [
+      asked("q1"),
+      resolved("q1", "answered"),
+      asked("q2"),
+      prose,
+      asked("q3"),
+    ];
+    expect(unresolvedElicitationIds(lines)).toEqual(["q2", "q3"]);
+  });
+
+  it("treats an already-interrupted question as resolved, so a second restore does not re-close it", () => {
+    const first = closeUnresolvedElicitations([asked("q1")]);
+    expect(first).not.toBeNull();
+    expect(closeUnresolvedElicitations(first!.lines)).toBeNull();
+  });
+
+  it("returns null when there is nothing open, so the caller skips the rewrite", () => {
+    expect(closeUnresolvedElicitations([prose])).toBeNull();
+    expect(
+      closeUnresolvedElicitations([asked("q1"), resolved("q1", "answered")]),
+    ).toBeNull();
+  });
+
+  it("closes an open question as interrupted, appended after everything else", () => {
+    const swept = closeUnresolvedElicitations([asked("q1"), prose]);
+    expect(swept?.ids).toEqual(["q1"]);
+    const updates = parseJournalLines(swept!.lines);
+    expect(updates).toHaveLength(3);
+    expect(updates[2]).toMatchObject({
+      kind: "elicitation_resolution",
+      elicitation: { id: "q1", resolution: "interrupted" },
+    });
+  });
+
+  it("carries only the open questions' own lines across a session/load replay", () => {
+    const prior = [
+      asked("q1"),
+      resolved("q1", "answered"),
+      asked("q2", "which branch?"),
+    ];
+    const carried = unresolvedElicitationLines(prior);
+    expect(carried).toEqual([asked("q2", "which branch?")]);
+  });
+
+  it("survives a torn line without losing the rest", () => {
+    expect(unresolvedElicitationIds(["{not json", asked("q1")])).toEqual([
+      "q1",
+    ]);
+    expect(unresolvedElicitationLines(["{not json", asked("q1")])).toEqual([
+      asked("q1"),
+    ]);
+  });
+
+  it("ignores an elicitation row with no usable id", () => {
+    const noId = JSON.stringify({ kind: "elicitation", raw: {} });
+    expect(unresolvedElicitationIds([noId])).toEqual([]);
+    expect(closeUnresolvedElicitations([noId])).toBeNull();
   });
 });

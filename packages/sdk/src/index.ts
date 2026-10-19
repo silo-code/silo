@@ -148,6 +148,8 @@ export type {
   AgentElicitationOption,
   AgentElicitationCustomAnswer,
   AgentElicitationAnswer,
+  AgentElicitationRecord,
+  AgentElicitationResolution,
   AgentCommand,
   AgentPromptCapabilities,
 } from "./agents-service";

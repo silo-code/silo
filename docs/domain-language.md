@@ -796,10 +796,27 @@ consumer renders differs between them. Distinct from a **Permission Request**,
 which is one flat choice about running a tool: a Question cannot be flattened to
 buttons without producing a wrong answer for anything but the single-select
 case. Auto Accept (RFC 0047) deliberately never answers one — there is no safe
-answer to invent.
+answer to invent. A Question is also a **row of the Transcript**, not only a
+live request: it is journaled when asked and again when it settles, so a
+restored conversation can still show what was asked and how it ended.
 _Avoid_: "elicitation" in the UI; "prompt" (that is the user's message to the
 agent); treating the free-text fallback as a degraded answer (it is
 first-class — the agent prefers it over a selection)
+
+**Interrupted Question** (`AgentElicitationResolution` `"interrupted"`, RFC
+0062 follow-up) — a **Question** that was still open when its **Chat session**
+went away: a webview reload, an app restart, a closed panel. Silo records the
+resolution itself, because no answer ever reached the agent and none can now —
+the reply path died with the session that carried it. It is the one resolution
+the user did not choose, and the only one the Transcript explains rather than
+just labels ("This was never answered — the agent never got a reply. Send a
+message to carry on"); the wording names no cause, since a reload is only the
+most common one. A session restored with one comes back `activity: "blocked"`
+and `stale`, since the conversation genuinely is still waiting on the user even
+though no process is.
+_Avoid_: "lost"/"expired" (the question is not gone — it is on the record,
+unanswered); "cancelled" (that is the user deliberately aborting the tool
+call); offering answer controls on one (there is no request left to answer)
 
 **Transcript** (RFC 0038 phase 3) — the rendered conversation of a **Chat
 session**: the agent's streamed text, its thinking, its tool-call rows, its
