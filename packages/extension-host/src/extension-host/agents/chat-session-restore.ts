@@ -150,6 +150,17 @@ export function dormantChatSessions(
  *   self-clearing "this was restored and can't be fully trusted" signal the
  *   terminal side already uses for exactly this case — never as a spinner that
  *   would spin forever.
+ * - **`blocked` does survive — but only for a question.** The distinction is
+ *   what the value *claims*: `working` asserts a process is running, which is
+ *   false the moment the app restarts, while `blocked` asserts the
+ *   **conversation** is waiting on the user — still true, because nobody
+ *   answered (RFC 0062 follow-up). It comes back `stale` all the same: the
+ *   question cannot be answered as asked, and `stale` is also what suppresses
+ *   the blocked chime for a session that was already blocked before the
+ *   restart. A block on a **permission request** does *not* survive: it leaves
+ *   no journal row, so restoring it would show a session waiting on an answer
+ *   with nothing in the transcript to answer — strictly worse than the `idle`
+ *   it came back as before. Hence `blockedOnQuestion`, not `activity` alone.
  * - **`error` / `dead` do not.** Both describe a process, and this session has
  *   none until something reconnects; the panel decides what to show once it
  *   tries.
@@ -169,6 +180,10 @@ export function restoredActivity(persisted: PersistedChatSession): {
   stale: boolean;
 } {
   const wasWorking = persisted.activity === "working";
+  // Narrow on purpose: a **question**'s block restores, a permission
+  // request's does not. See `PersistedChatSession.blockedOnQuestion`.
+  const wasBlocked =
+    persisted.activity === "blocked" && persisted.blockedOnQuestion === true;
   // When it stopped also survives, and for the same reason attention does: it
   // is a fact about the past, which a restart does not change. A Chat session
   // always comes back stopped (`activity: "idle"` below), so `stopped` is
@@ -180,14 +195,28 @@ export function restoredActivity(persisted: PersistedChatSession): {
     lastLiveAt: persisted.lastLiveAt,
   });
   return {
-    activity: "idle",
+    activity: wasBlocked ? "blocked" : "idle",
     needsAttention: persisted.needsAttention,
     ...(persisted.attentionSince
       ? { attentionSince: persisted.attentionSince }
       : {}),
     ...(idleSince ? { idleSince } : {}),
-    stale: wasWorking,
+    stale: wasWorking || wasBlocked,
   };
+}
+
+/**
+ * Record whether a session is blocked on a **question**, so a restore can tell
+ * its block apart from a permission request's (see
+ * `PersistedChatSession.blockedOnQuestion`). Called by the sessions service
+ * whenever a question is raised, settled, or swept on reconnect.
+ */
+export function noteChatSessionBlockedOnQuestion(
+  agentSessionId: string,
+  blocked: boolean,
+): void {
+  if (blocked) blockedOnQuestionBySession.set(agentSessionId, true);
+  else blockedOnQuestionBySession.delete(agentSessionId);
 }
 
 /**
@@ -217,6 +246,9 @@ export function chatSessionStatus(
     // status update never drops it and never has to wait for one.
     ...(configDir ? { configDir } : {}),
     activity: info.activity,
+    ...(blockedOnQuestionBySession.get(info.id)
+      ? { blockedOnQuestion: true }
+      : {}),
     needsAttention: info.needsAttention,
     ...(info.attentionSince ? { attentionSince: info.attentionSince } : {}),
     ...(info.idleSince ? { idleSince: info.idleSince } : {}),
@@ -248,6 +280,17 @@ export function noteChatSessionConfigDir(
 /** Agent Session id → the config directory its agent is running with, for the
  *  window before its status row exists. */
 const configDirBySession = new Map<string, string>();
+
+/**
+ * Which live sessions are blocked on a **question** rather than a permission
+ * request, by `AgentInfo.id`.
+ *
+ * Module-local for the same reason {@link configDirBySession} is: it is a fact
+ * about a session that {@link chatSessionStatus} needs and `AgentInfo` has no
+ * business carrying — no consumer renders the two kinds of block differently,
+ * and widening the public surface for one restore rule would invite them to.
+ */
+const blockedOnQuestionBySession = new Map<string, boolean>();
 
 /** Whether two statuses differ in anything but their timestamp — the gate that
  *  keeps a per-turn activity change from rewriting (and re-persisting) an
@@ -390,5 +433,6 @@ export function startChatSessionStatusPersistence(): void {
 export function _resetDormantChatSessionsForTests(): void {
   dormantIds.clear();
   configDirBySession.clear();
+  blockedOnQuestionBySession.clear();
   pruned = false;
 }

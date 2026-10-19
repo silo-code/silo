@@ -141,6 +141,12 @@ export function stoppedWorking(
  * so a session seen for the first time already blocked (a resume landing
  * mid-request) doesn't ring, and a repeated snapshot while still blocked
  * doesn't ring again.
+ *
+ * A **restored** block never rings either, which is what `stale` rules out
+ * here: a Chat session that went away with a question open comes back
+ * `blocked` on purpose (RFC 0062 follow-up), and that is a state being
+ * *remembered*, not entered. Chiming for it would sound a notification at
+ * startup for a question asked hours ago.
  */
 export function startedBlocking(
   prev: AgentInfo | undefined,
@@ -150,7 +156,8 @@ export function startedBlocking(
     next.isAgent &&
     prev !== undefined &&
     prev.activity !== "blocked" &&
-    next.activity === "blocked"
+    next.activity === "blocked" &&
+    !next.stale
   );
 }
 

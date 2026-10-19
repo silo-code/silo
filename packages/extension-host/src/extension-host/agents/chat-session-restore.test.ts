@@ -24,6 +24,7 @@ import {
 import {
   _resetDormantChatSessionsForTests,
   chatSessionStatus,
+  noteChatSessionBlockedOnQuestion,
   noteChatSessionConfigDir,
   restoredActivity,
   chatSessionStatusChanged,
@@ -191,6 +192,25 @@ describe("chatSessionStatus — what is worth persisting", () => {
     agentId: "claude",
     chatResumeState: "live",
   };
+
+  // The flag that keeps a question's block apart from a permission request's
+  // across a restart — only the former has a transcript row to come back to.
+  it("records blockedOnQuestion only once a question has been raised", () => {
+    const blocked: AgentInfo = { ...live, activity: "blocked" };
+    expect(chatSessionStatus(blocked, "now")).not.toHaveProperty(
+      "blockedOnQuestion",
+    );
+
+    noteChatSessionBlockedOnQuestion(live.id, true);
+    expect(chatSessionStatus(blocked, "now")).toMatchObject({
+      blockedOnQuestion: true,
+    });
+
+    noteChatSessionBlockedOnQuestion(live.id, false);
+    expect(chatSessionStatus(blocked, "now")).not.toHaveProperty(
+      "blockedOnQuestion",
+    );
+  });
 
   it("captures the identity a later run can paint a row from", () => {
     expect(chatSessionStatus(live, "now")).toEqual({
@@ -466,6 +486,38 @@ describe("restoredActivity — the status a restart must not invent", () => {
   // first-sighting stamp, and a dormant Chat session is briefly absent from
   // the snapshot while registration catches up — which dropped the stamp and
   // re-dated it to the next snapshot (RFC 0056).
+  // RFC 0062 follow-up. The asymmetry with `working` above is the whole point:
+  // `working` claims a process is running, which a restart makes false, while
+  // `blocked` claims the conversation is waiting on the user — which nobody
+  // answered, so it is still true.
+  it("brings a session that was waiting on an answer back blocked, and stale", () => {
+    const restored = restoredActivity(
+      status({
+        activity: "blocked",
+        blockedOnQuestion: true,
+        needsAttention: true,
+        attentionSince: "2026-10-18T09:00:00.000Z",
+      }),
+    );
+    expect(restored.activity).toBe("blocked");
+    expect(restored.stale).toBe(true);
+    expect(restored.needsAttention).toBe(true);
+    expect(restored.attentionSince).toBe("2026-10-18T09:00:00.000Z");
+  });
+
+  // The asymmetry inside `blocked` itself: a **permission request** leaves no
+  // journal row, so restoring it would show a session waiting on an answer
+  // with nothing in the transcript to answer and nothing to clear it.
+  it("brings a session blocked on a permission request back idle, not blocked", () => {
+    const restored = restoredActivity(
+      status({ activity: "blocked", needsAttention: true }),
+    );
+    expect(restored.activity).toBe("idle");
+    expect(restored.stale).toBe(false);
+    // Attention still survives — that part was never in doubt.
+    expect(restored.needsAttention).toBe(true);
+  });
+
   it("carries idleSince through verbatim — a restart must not re-date a finish", () => {
     expect(
       restoredActivity(

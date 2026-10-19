@@ -1,6 +1,6 @@
 # Interface: AgentElicitationCustomAnswer
 
-Defined in: [packages/sdk/src/agents-service.ts:1355](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1355)
+Defined in: [packages/sdk/src/agents-service.ts:1367](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1367)
 
 **`Beta`**
 
@@ -20,7 +20,7 @@ precedence rule, applied for you by
 readonly field: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1358](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1358)
+Defined in: [packages/sdk/src/agents-service.ts:1370](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1370)
 
 **`Beta`**
 
@@ -35,7 +35,7 @@ The field the typed answer is sent under. Rarely needed — pass custom
 readonly optional label?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1360](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1360)
+Defined in: [packages/sdk/src/agents-service.ts:1372](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1372)
 
 **`Beta`**
 
@@ -49,7 +49,7 @@ The box's label, e.g. `"Other"`.
 readonly optional description?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1362](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1362)
+Defined in: [packages/sdk/src/agents-service.ts:1374](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1374)
 
 **`Beta`**
 

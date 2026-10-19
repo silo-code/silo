@@ -173,6 +173,7 @@ wire format to build a Chat UI:
 | `tool_call` / `tool_call_update`                                     | `toolCall` — [`AgentToolCall`](/api/types/interfaces/AgentToolCall)                                                |
 | `plan`                                                               | `plan` — the whole list of [`AgentPlanEntry`](/api/types/interfaces/AgentPlanEntry)                                |
 | `usage_update`                                                       | `usage` — [`AgentSessionUsage`](/api/types/interfaces/AgentSessionUsage)                                           |
+| `elicitation` / `elicitation_resolution`                             | `elicitation` — [`AgentElicitationRecord`](/api/types/interfaces/AgentElicitationRecord), a question as history    |
 
 `messageId` groups a run of streaming chunks into one bubble — **synthesized by
 Silo when the agent omits it**, which real agents do, so you never have to mint
@@ -204,6 +205,40 @@ An update whose opening `tool_call` never arrived is a real shape — render it
 rather than dropping it. `rawInput` / `rawOutput` are the agent's own tool
 arguments and result: protocol-carried, but **vendor-shaped by definition**, so
 they are typed `unknown` and each agent's shape differs.
+
+### Questions
+
+`onElicitation` delivers a question the agent is **blocked on the user** for —
+an [`AgentElicitationRequest`](/api/types/interfaces/AgentElicitationRequest).
+Answer it with `respond` / `decline` / `cancel`; if you register no listener,
+Silo answers `cancel` so the agent is never left hanging.
+
+The update stream carries the same question as **history**, which is a
+different job: the Agent Client Protocol never echoes `elicitation/create` into
+`session/update`, so without a row of its own a question would leave no trace
+in the transcript and could not survive a reconnect. Silo synthesizes two
+updates, both carrying
+[`AgentElicitationRecord`](/api/types/interfaces/AgentElicitationRecord) on
+`elicitation`:
+
+| `kind`                   | What it says                                                     |
+| ------------------------ | ---------------------------------------------------------------- |
+| `elicitation`            | The agent asked this. `resolution` is absent — it is still open. |
+| `elicitation_resolution` | How it ended, on `resolution`. Patch the row the first one made. |
+
+`resolution` is `"answered"`, `"skipped"`, `"cancelled"` — or
+`"interrupted"`, the one Silo writes on its own behalf: the question was still
+open when the session went away (a reload, a restart, a closed panel), so no
+answer ever reached the agent. A conversation restored with an interrupted
+question comes back `activity: "blocked"` and `stale`, because the turn really
+is still waiting on the user.
+
+Draw each question once: render the live request's form while it is open, and
+the row after it settles. Join the two on
+[`AgentElicitationRequest.id`](/api/types/interfaces/AgentElicitationRequest),
+which is the id its record is journaled under. There is no way to _answer_ a
+restored question — `respond` belonged to a request that no longer exists — so
+show it read-only and let the user's next prompt carry the conversation on.
 
 ### Delegated work
 

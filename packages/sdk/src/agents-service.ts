@@ -1166,6 +1166,18 @@ export interface AgentSessionUpdate {
    */
   readonly usage?: AgentSessionUsage;
   /**
+   * The question the agent asked, for the Silo-synthesized kinds
+   * `"elicitation"` (it was asked) and `"elicitation_resolution"` (how it
+   * ended); `undefined` otherwise.
+   *
+   * Synthesized rather than read off the wire, like the `user_message_chunk`
+   * {@link timestamp}, and for the same reason: `elicitation/create` is a
+   * *request* the Agent Client Protocol never echoes into the session stream,
+   * so without this a question would leave no trace in the transcript journal
+   * and could not survive a replay (RFC 0062).
+   */
+  readonly elicitation?: AgentElicitationRecord;
+  /**
    * The **delegated worker that produced this frame** — set on every update a
    * subagent authored, absent on the session's own.
    *
@@ -1417,6 +1429,62 @@ export interface AgentElicitationAnswer {
 }
 
 /**
+ * How an {@link AgentElicitationRequest} ended.
+ *
+ * `"interrupted"` is the one Silo itself writes rather than the user: the
+ * question was still open when the session went away — a webview reload, an
+ * app restart, a torn-down panel — so no answer ever reached the agent. It is
+ * a fact about the *conversation*, which is why it is recorded in the
+ * transcript journal and survives a restore (RFC 0062).
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type AgentElicitationResolution =
+  | "answered"
+  | "skipped"
+  | "cancelled"
+  | "interrupted";
+
+/**
+ * A question the agent asked, as a **durable transcript row** rather than a
+ * live request — {@link AgentElicitationRequest} with every callable member
+ * removed, which is precisely what can be written down.
+ *
+ * Carried on {@link AgentSessionUpdate.elicitation} for the Silo-synthesized
+ * `"elicitation"` and `"elicitation_resolution"` kinds, so a Chat UI can
+ * repaint a question it can no longer *answer* — a resumed session has no
+ * pending request — and say honestly how it ended. Without this a reload left
+ * the transcript ending mid-air, with no sign the turn had been waiting on the
+ * user at all.
+ *
+ * On an `"elicitation_resolution"` update only {@link id} and
+ * {@link resolution} are meaningful: it patches the row the `"elicitation"`
+ * update opened.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentElicitationRecord {
+  /** Correlates the two updates, and a live
+   *  {@link AgentElicitationRequest.id} with its row. Unique per session. */
+  readonly id: string;
+  /** The human-readable ask — {@link AgentElicitationRequest.message}. */
+  readonly message?: string;
+  /** The questions as they were put to the user. */
+  readonly questions?: readonly AgentElicitationQuestion[];
+  /** {@link AgentElicitationRequest.acknowledgeOnly}, as asked. */
+  readonly acknowledgeOnly?: boolean;
+  /** The tool call the question belonged to, when the agent sent one. */
+  readonly toolCallId?: string;
+  /** How it ended. `undefined` on the opening `"elicitation"` update — the
+   *  question was still open at that point. */
+  readonly resolution?: AgentElicitationResolution;
+}
+
+/**
  * The agent is **blocked on the user**: it is asking a structured question and
  * the turn will not proceed until one of {@link respond}, {@link decline} or
  * {@link cancel} is called. Delivered to
@@ -1440,6 +1508,13 @@ export interface AgentElicitationAnswer {
  * @beta
  */
 export interface AgentElicitationRequest {
+  /**
+   * Identifies this request within its session — the id the matching
+   * {@link AgentElicitationRecord} is journaled under. A UI that renders both
+   * the live card and the transcript row joins them on this, so one question
+   * is never drawn twice.
+   */
+  readonly id: string;
   /** The human-readable ask. For a single-question form this *is* the
    *  question, and the question's `prompt` repeats it. */
   readonly message: string;

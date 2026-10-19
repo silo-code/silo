@@ -673,6 +673,124 @@ describe("turn lifecycle → ctx.agents status", () => {
     });
   });
 
+  // RFC 0062 follow-up. Before this, a question lived only in the panel's
+  // React state: a reload erased it with no trace in the transcript, and the
+  // session came back looking idle with the turn still waiting on the user.
+  describe("a question as a durable transcript row", () => {
+    function journalOf(sessionId: string): Record<string, unknown>[] {
+      return (journalFiles.get(journalKey("active", sessionId)) ?? []).map(
+        (l) => JSON.parse(l) as Record<string, unknown>,
+      );
+    }
+
+    it("journals the ask, and publishes it to the session's update listeners", async () => {
+      const handle = await service.connect("claude-chat");
+      const updates = vi.fn();
+      handle.onUpdate(updates);
+      handle.onElicitation(vi.fn());
+
+      captured.onElicitation!(elicitationRequest(), vi.fn());
+
+      const rows = journalOf("s1");
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        kind: "elicitation",
+        elicitation: {
+          message: "Please answer the following questions.",
+          acknowledgeOnly: false,
+        },
+      });
+      expect(updates).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "elicitation" }),
+      );
+    });
+
+    it("gives the live request the same id as its row, so a UI can join them", async () => {
+      const handle = await service.connect("claude-chat");
+      const seen = vi.fn();
+      handle.onElicitation(seen);
+      captured.onElicitation!(elicitationRequest(), vi.fn());
+
+      const row = journalOf("s1")[0].elicitation as { id: string };
+      expect(seen.mock.calls[0][0].id).toBe(row.id);
+    });
+
+    it.each([
+      ["respond", "answered", { question_0: { value: "SQLite" } }],
+      ["decline", "skipped", undefined],
+      ["cancel", "cancelled", undefined],
+    ] as const)(
+      "records how the user settled it: %s → %s",
+      async (method, resolution, answers) => {
+        const handle = await service.connect("claude-chat");
+        const seen = vi.fn();
+        handle.onElicitation(seen);
+        captured.onElicitation!(elicitationRequest(), vi.fn());
+
+        const request = seen.mock.calls[0][0];
+        if (method === "respond") request.respond(answers);
+        else if (method === "decline") request.decline();
+        else request.cancel();
+
+        const rows = journalOf("s1");
+        expect(rows).toHaveLength(2);
+        expect(rows[1]).toMatchObject({
+          kind: "elicitation_resolution",
+          elicitation: { resolution },
+        });
+      },
+    );
+
+    it("writes one resolution however many times the request is answered", async () => {
+      const handle = await service.connect("claude-chat");
+      const seen = vi.fn();
+      handle.onElicitation(seen);
+      captured.onElicitation!(elicitationRequest(), vi.fn());
+
+      const request = seen.mock.calls[0][0];
+      request.decline();
+      request.cancel();
+      expect(journalOf("s1")).toHaveLength(2);
+    });
+
+    // The graceful half of the fix: closing the panel, switching profiles.
+    // A webview reload runs none of this, which is what the connect-time
+    // sweep below is for.
+    it("strands an open question as interrupted on dispose, and cancels the request so the agent is not left blocking", async () => {
+      const handle = await service.connect("claude-chat");
+      handle.onElicitation(vi.fn());
+      const respondSpy = vi.fn();
+      captured.onElicitation!(elicitationRequest(), respondSpy);
+      expect(respondSpy).not.toHaveBeenCalled();
+
+      handle.dispose();
+
+      expect(respondSpy).toHaveBeenCalledWith({ action: "cancel" });
+      const rows = journalOf("s1");
+      expect(rows[rows.length - 1]).toMatchObject({
+        kind: "elicitation_resolution",
+        elicitation: { resolution: "interrupted" },
+      });
+    });
+
+    it("leaves an already-answered question alone on dispose", async () => {
+      const handle = await service.connect("claude-chat");
+      const seen = vi.fn();
+      handle.onElicitation(seen);
+      captured.onElicitation!(elicitationRequest(), vi.fn());
+      seen.mock.calls[0][0].decline();
+      handle.dispose();
+
+      const resolutions = journalOf("s1").filter(
+        (r) => r.kind === "elicitation_resolution",
+      );
+      expect(resolutions).toHaveLength(1);
+      expect(resolutions[0]).toMatchObject({
+        elicitation: { resolution: "skipped" },
+      });
+    });
+  });
+
   it("answers a question cancelled when no listener is registered", async () => {
     await service.connect("claude-chat");
     const respondSpy = vi.fn();
@@ -1829,6 +1947,227 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     const handle = await service.connect("claude-chat");
     await handle.dispose();
     expect(fakeClient.closeSession).toHaveBeenCalledWith("s1");
+  });
+
+  // RFC 0062 follow-up — the defect this whole change exists for. A webview
+  // reload runs no cleanup at all, so the journal is the only thing that knows
+  // the agent was waiting on an answer. The sweep on the way back in is what
+  // turns that into something the user can see.
+  describe("a question left unanswered when the session went away", () => {
+    const askedRow = {
+      kind: "elicitation",
+      elicitation: {
+        id: "q1",
+        message: "Which branch?",
+        questions: [{ id: "branch", kind: "select", prompt: "Which branch?" }],
+        acknowledgeOnly: false,
+      },
+      raw: { synthesized: true },
+    };
+
+    /** A fresh ask, as the protocol layer hands one over. */
+    const freshAsk = () => ({
+      message: "Which file?",
+      questions: [
+        {
+          id: "file",
+          kind: "select" as const,
+          prompt: "Which file?",
+          options: [{ value: "a.ts", label: "a.ts" }],
+        },
+      ],
+      acknowledgeOnly: false,
+      raw: {},
+    });
+
+    beforeEach(() => {
+      fakeClient.initialize.mockResolvedValue({
+        agentInfo: { title: "Claude Code" },
+        agentCapabilities: {},
+        sessionCapabilities: { resume: true },
+        authMethods: [],
+        raw: {},
+      });
+    });
+
+    it("comes back marked interrupted in the transcript", async () => {
+      seedJournal("old-id", [
+        { kind: "agent_message_chunk", text: "hi" },
+        askedRow,
+      ]);
+
+      const handle = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+      });
+
+      const rows = handle.journal;
+      expect(rows[rows.length - 1]).toMatchObject({
+        kind: "elicitation_resolution",
+        elicitation: { id: "q1", resolution: "interrupted" },
+      });
+      // The ask itself survives too — the row has to say *what* was asked.
+      expect(rows.some((r) => r.kind === "elicitation")).toBe(true);
+    });
+
+    it("comes back blocked and stale — still waiting on the user, but not a fresh ask", async () => {
+      seedJournal("old-id", [askedRow]);
+
+      await service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+
+      expect(chatAgentInfos()[0]).toMatchObject({
+        activity: "blocked",
+        stale: true,
+      });
+    });
+
+    // RFC 0056's rule, applied to a restored block: when the agent started
+    // waiting is a fact about the past. Re-stamping it on reconnect made every
+    // restart relabel an hours-old question as seconds old.
+    it("keeps the original attention timestamp rather than re-dating it to the restart", async () => {
+      seedJournal("old-id", [askedRow]);
+      store.chatSessionState["chat:old-id"] = {
+        workspaceId: "active",
+        sessionId: "old-id",
+        title: "Was waiting on you",
+        canResume: true,
+        activity: "blocked",
+        blockedOnQuestion: true,
+        needsAttention: true,
+        attentionSince: "2026-10-18T09:00:00.000Z",
+        lastLiveAt: "2026-10-18T09:00:00.000Z",
+      };
+
+      await service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+
+      expect(chatAgentInfos()[0].attentionSince).toBe(
+        "2026-10-18T09:00:00.000Z",
+      );
+    });
+
+    it("comes back idle when every question was answered", async () => {
+      seedJournal("old-id", [
+        askedRow,
+        {
+          kind: "elicitation_resolution",
+          elicitation: { id: "q1", resolution: "answered" },
+          raw: {},
+        },
+      ]);
+
+      const handle = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+      });
+
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+      expect(
+        handle.journal.filter((r) => r.kind === "elicitation_resolution"),
+      ).toHaveLength(1);
+    });
+
+    it("does not re-close it on the next restore — interrupted is settled", async () => {
+      seedJournal("old-id", [askedRow]);
+      const first = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+      });
+      first.dispose();
+
+      const again = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+      });
+      expect(
+        again.journal.filter((r) => r.kind === "elicitation_resolution"),
+      ).toHaveLength(1);
+    });
+
+    // The hole the id collision hid in: every test asked once. A counter reset
+    // per connection mints `q1` over a journal that already holds a `q1`, and
+    // the new question inherits the old row — dropped by the transcript's
+    // idempotency guard, and answered into the *wrong* row.
+    it("gives a question asked after a restore an id the restored journal has never used", async () => {
+      seedJournal("old-id", [askedRow]);
+      const handle = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+      });
+      const seen = vi.fn();
+      handle.onElicitation(seen);
+
+      captured.onElicitation!(freshAsk(), vi.fn());
+
+      const restoredIds = handle.journal
+        .filter((r) => r.elicitation?.id)
+        .map((r) => r.elicitation!.id);
+      expect(restoredIds).toContain("q1");
+      expect(restoredIds).not.toContain(seen.mock.calls[0][0].id);
+    });
+
+    it("does not re-answer the restored question when the new one is answered", async () => {
+      seedJournal("old-id", [askedRow]);
+      const handle = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+      });
+      const seen = vi.fn();
+      handle.onElicitation(seen);
+      captured.onElicitation!(freshAsk(), vi.fn());
+      seen.mock.calls[0][0].decline();
+
+      const lines = (
+        journalFiles.get(journalKey("active", "old-id")) ?? []
+      ).map(
+        (l) =>
+          JSON.parse(l) as {
+            kind: string;
+            elicitation?: { id: string; resolution?: string };
+          },
+      );
+      const forRestored = lines.filter(
+        (r) =>
+          r.kind === "elicitation_resolution" && r.elicitation?.id === "q1",
+      );
+      // The old question keeps its own outcome; the new one gets its own row.
+      expect(forRestored).toHaveLength(1);
+      expect(forRestored[0].elicitation?.resolution).toBe("interrupted");
+      expect(
+        lines.filter((r) => r.kind === "elicitation_resolution"),
+      ).toHaveLength(2);
+    });
+
+    // `session/load` *replaces* the journal with the agent's own replay, which
+    // contains no questions — ACP never echoes `elicitation/create` into the
+    // session stream. Without the carry-over, the restore meant to bring the
+    // conversation back is what erased the unanswered question.
+    it("survives a session/load replay, which rewrites the journal wholesale", async () => {
+      fakeClient.initialize.mockResolvedValue({
+        agentInfo: { title: "Claude Code" },
+        agentCapabilities: { loadSession: true },
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+      fakeClient.loadSession.mockImplementation(async () => {
+        // The wire shape, as the surrounding load tests use — this callback
+        // sits below `toSdkUpdate`, not above it.
+        captured.onUpdate({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "replayed" },
+        } as never);
+        return { sessionId: "old-id", configOptions: [] };
+      });
+      seedJournal("old-id", [
+        { kind: "agent_message_chunk", text: "hi" },
+        askedRow,
+      ]);
+
+      const handle = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+      });
+
+      expect(handle.journal.map((r) => r.kind)).toEqual([
+        "agent_message_chunk",
+        "elicitation",
+        "elicitation_resolution",
+      ]);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "blocked" });
+    });
   });
 
   it("prefers session/resume when both capabilities are advertised, and paints the journal (no replay)", async () => {

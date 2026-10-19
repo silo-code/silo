@@ -1,6 +1,6 @@
 # Interface: AgentElicitationAnswer
 
-Defined in: [packages/sdk/src/agents-service.ts:1401](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1401)
+Defined in: [packages/sdk/src/agents-service.ts:1413](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1413)
 
 **`Beta`**
 
@@ -18,7 +18,7 @@ unanswered; Silo sends no value for it rather than inventing one.
 readonly optional value?: string | number | boolean | readonly string[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1410](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1410)
+Defined in: [packages/sdk/src/agents-service.ts:1422](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1422)
 
 **`Beta`**
 
@@ -37,7 +37,7 @@ would make some agents discard the whole payload.
 readonly optional custom?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1416](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1416)
+Defined in: [packages/sdk/src/agents-service.ts:1428](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1428)
 
 **`Beta`**
 

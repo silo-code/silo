@@ -247,6 +247,7 @@ import {
   toggleMultiSelect,
   type QuestionFormState,
 } from "./question-form";
+import { questionOutcome, showQuestionRow } from "./question-row";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import {
   ChatLinkSpan,
@@ -1328,6 +1329,41 @@ function renderTranscriptEntry(
               </button>
             ) : null}
           </div>
+        ) : null}
+      </div>
+    );
+  }
+  if (entry.type === "question") {
+    // The read-only twin of the live question card below (RFC 0062
+    // follow-up). Deliberately *not* the same component: there is nothing to
+    // answer here, and rendering real controls over a request that no longer
+    // exists would offer the user an action that silently does nothing. The
+    // prompts are shown and the options are not, for the same reason — a
+    // choice nobody can pick is noise.
+    const outcome = questionOutcome(entry.resolution);
+    return (
+      <div
+        key={entry.key}
+        className="acp-chat__question"
+        data-settled
+        data-resolution={entry.resolution}
+      >
+        <div className="acp-chat__question-title">{entry.message}</div>
+        {/* `prompt`, not `title`: the title is a one-word header the bridge
+            puts above the field ("Branch"), while the prompt is the question
+            the agent actually asked. A row headed by the titles alone reads
+            as a list of topics and never says what was wanted — caught live,
+            2026-10-19. Only for a multi-question ask: a lone question's
+            prompt repeats the message shown above. */}
+        {entry.questions.length > 1
+          ? entry.questions.map((q) => (
+              <div key={q.id} className="acp-chat__question-asked">
+                {q.prompt}
+              </div>
+            ))
+          : null}
+        {outcome !== undefined ? (
+          <div className="acp-chat__question-outcome">{outcome}</div>
         ) : null}
       </div>
     );
@@ -3115,9 +3151,22 @@ export function AcpChatPanel({
   // the transcript does — so a render triggered by anything else (a workspace
   // switch, a composer keystroke) reuses it rather than re-grouping the whole
   // session.
+  // The ids of the questions that are open **right now**, so each one is drawn
+  // once: its interactive card while it is live, its transcript row after
+  // (`showQuestionRow`). Keyed off `questions` by identity, which only changes
+  // when a card arrives or retires.
+  const liveQuestionIds = useMemo(
+    () => new Set(questions.map((q) => q.request.id)),
+    [questions],
+  );
   const turns = useMemo(
-    () => groupTurns(transcript.entries),
-    [transcript.entries],
+    () =>
+      groupTurns(
+        transcript.entries.filter(
+          (e) => e.type !== "question" || showQuestionRow(e, liveQuestionIds),
+        ),
+      ),
+    [transcript.entries, liveQuestionIds],
   );
 
   turnCountRef.current = turns.length;

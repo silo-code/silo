@@ -123,6 +123,8 @@ the published reference is exactly this surface — no more, no less.
 - [AgentElicitationCustomAnswer](interfaces/AgentElicitationCustomAnswer.md)
 - [AgentElicitationQuestion](interfaces/AgentElicitationQuestion.md)
 - [AgentElicitationAnswer](interfaces/AgentElicitationAnswer.md)
+- [AgentElicitationResolution](type-aliases/AgentElicitationResolution.md)
+- [AgentElicitationRecord](interfaces/AgentElicitationRecord.md)
 - [AgentElicitationRequest](interfaces/AgentElicitationRequest.md)
 - [AgentSessionConfigChoice](interfaces/AgentSessionConfigChoice.md)
 - [AgentSessionConfigOption](interfaces/AgentSessionConfigOption.md)
