@@ -1,5 +1,17 @@
 # @silo-code/sdk
 
+## [0.62.0](https://github.com/silo-code/silo/compare/sdk-v0.61.0...sdk-v0.62.0) (2026-10-20)
+
+
+### Features
+
+* **agents-chat-panel:** put the question card in tabs and show what you answered ([#647](https://github.com/silo-code/silo/issues/647)) ([e7e8c42](https://github.com/silo-code/silo/commit/e7e8c424fa169d33c657dd22d7d51785e6c47160))
+
+
+### Bug Fixes
+
+* **agents:** keep an unanswered question on the record across a reload ([#643](https://github.com/silo-code/silo/issues/643)) ([5501bb6](https://github.com/silo-code/silo/commit/5501bb648aa57b1073997dd1696a127253ed3466)), closes [#642](https://github.com/silo-code/silo/issues/642)
+
 ## [0.61.0](https://github.com/silo-code/silo/compare/sdk-v0.60.0...sdk-v0.61.0) (2026-10-17)
 
 
