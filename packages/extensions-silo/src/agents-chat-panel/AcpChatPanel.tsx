@@ -262,6 +262,7 @@ import {
   setCustomChosen,
   typeCustomAnswer,
 } from "./question-tabs";
+import { CopyButton } from "./CopyButton";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import {
   ChatLinkSpan,
@@ -877,26 +878,29 @@ function renderTranscriptEntry(
                 {formatMessageSentAt(entry.sentAt)}
               </span>
             ) : null}
-            <IconButton
-              size="sm"
+            {/* Idle glyph is this row's own outline→fill hover stack; the
+                check it flips to on copy is `CopyButton`'s, shared with a
+                code block's gutter so one confirmation means one thing. */}
+            <CopyButton
+              text={entry.text}
+              label="Copy message"
               className="acp-chat__message-copy"
-              aria-label="Copy message"
-              onClick={() => void navigator.clipboard.writeText(entry.text)}
-            >
-              <span className="acp-chat__message-copy-icon-stack">
-                <Copy
-                  size="1em"
-                  aria-hidden="true"
-                  className="acp-chat__message-copy-icon acp-chat__message-copy-icon--outline"
-                />
-                <Copy
-                  size="1em"
-                  weight="fill"
-                  aria-hidden="true"
-                  className="acp-chat__message-copy-icon acp-chat__message-copy-icon--fill"
-                />
-              </span>
-            </IconButton>
+              idle={
+                <span className="acp-chat__message-copy-icon-stack">
+                  <Copy
+                    size="1em"
+                    aria-hidden="true"
+                    className="acp-chat__message-copy-icon acp-chat__message-copy-icon--outline"
+                  />
+                  <Copy
+                    size="1em"
+                    weight="fill"
+                    aria-hidden="true"
+                    className="acp-chat__message-copy-icon acp-chat__message-copy-icon--fill"
+                  />
+                </span>
+              }
+            />
           </div>
         ) : null}
       </div>
