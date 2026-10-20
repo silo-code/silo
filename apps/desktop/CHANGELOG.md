@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.78.0](https://github.com/silo-code/silo/compare/silo-v0.77.0...silo-v0.78.0) (2026-10-20)
+
+
+### Features
+
+* **agents-chat-panel:** give a fenced code block a gutter with wrap and copy ([#649](https://github.com/silo-code/silo/issues/649)) ([5d0615a](https://github.com/silo-code/silo/commit/5d0615a3f0754812f8c70478416726fe1346d393))
+* **agents-chat-panel:** put the question card in tabs and show what you answered ([#647](https://github.com/silo-code/silo/issues/647)) ([e7e8c42](https://github.com/silo-code/silo/commit/e7e8c424fa169d33c657dd22d7d51785e6c47160))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** let the profile pill use the room the composer has ([#650](https://github.com/silo-code/silo/issues/650)) ([0e523a6](https://github.com/silo-code/silo/commit/0e523a6bf324fba5851eacd08bd36d02f9b74ba1))
+* **agents:** end a chat turn whose end frame carries no origin marker ([#648](https://github.com/silo-code/silo/issues/648)) ([7baf054](https://github.com/silo-code/silo/commit/7baf054e8fe8f7ce0f4659db6fc160656bfdbd84))
+* **agents:** keep an unanswered question on the record across a reload ([#643](https://github.com/silo-code/silo/issues/643)) ([5501bb6](https://github.com/silo-code/silo/commit/5501bb648aa57b1073997dd1696a127253ed3466)), closes [#642](https://github.com/silo-code/silo/issues/642)
+
 ## [0.77.0](https://github.com/silo-code/silo/compare/silo-v0.76.0...silo-v0.77.0) (2026-10-18)
 
 
