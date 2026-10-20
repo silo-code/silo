@@ -1347,14 +1347,23 @@
 /* The profile pill is the one control allowed to ellipsize. Everything else in
    the row shows its value in full or the row changes density (see
    `control-density.ts`), but a profile label is user-chosen and can be any
-   length — without a cap, one long name would make even `condensed` "not fit"
-   and collapse a perfectly wide panel to the status line. The cap bounds what
-   the width probes measure, so it's load-bearing, not cosmetic. */
+   length. In the live row it takes whatever width its label needs and only
+   gives that up — shrinking, then ellipsizing — once the rigid controls beside
+   it have claimed the rest, so a wide dock shows the whole name. */
 .acp-chat__profile {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 180px;
   margin-right: auto;
+}
+
+/* The *probes* cap it, because they measure at `max-content`: an uncapped long
+   profile name there would make even `condensed` report "doesn't fit" and
+   collapse a perfectly wide panel to the status line. So the cap is the
+   profile's budget in the density ladder — what the row guarantees it can
+   always afford — while the live pill above spends any room the ladder left
+   over. Load-bearing, not cosmetic. */
+.acp-chat__controls-probe .acp-chat__profile {
+  max-width: 180px;
 }
 
 /* The kit's bare `MenuButton` only ellipsizes its label under `variant="field"`
