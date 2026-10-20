@@ -755,15 +755,20 @@ can trigger one, not the category).
 
 **Turn End Marker** — the frame by which an agent declares one of its turns
 over, outside the ACP stop-reason path. `claude-agent-acp` stamps exactly one
-`usage_update` per turn with a `cost` and a `_meta["_claude/origin"]` naming
-the provenance (`"human"` for a **Prompt Turn**, `"task-notification"` for an
-**Agent-Initiated Turn**). Vendor-namespaced, so it is quarantined in
-`chat-turn-signals.ts` and never named by the turn core; an agent that sends
-none simply has none, and the host falls back to quiescence. Whether a given
-session's agent marks its turns is **learned**, not configured — the first
-marker arrives at the end of the user's first Prompt Turn, before any
-Agent-Initiated Turn can occur. _Avoid_: "stop reason" (that is the ACP
-response to `session/prompt` and exists only for a Prompt Turn).
+`usage_update` per turn with a `cost`; **the cost is the marker**. It may also
+carry a `_meta["_claude/origin"]` naming the provenance (`"human"` for a
+**Prompt Turn**, `"task-notification"` for an **Agent-Initiated Turn**), but
+that is diagnostic colour the adapter omits on some Agent-Initiated Turns —
+reading the marker as "the origin field" left a production tab wedged in
+_Working_ with no turn end it could ever see. Vendor-namespaced, so it is
+quarantined in `chat-turn-signals.ts` and never named by the turn core; an
+agent that sends none simply has none, and the host falls back to quiescence.
+Whether a given session's agent marks its turns is **learned**, not configured
+— the first marker arrives at the end of the user's first Prompt Turn, before
+any Agent-Initiated Turn can occur — and learning it **widens** the quiescence
+window rather than retiring it, so a missing marker costs a late turn end
+rather than no turn end. _Avoid_: "stop reason" (that is the ACP response to
+`session/prompt` and exists only for a Prompt Turn).
 
 **Chat Session Connection** (`ctx.agents.sessions`, `AgentSessionHandle`,
 RFC 0038 phase 2) — the live handle an extension holds on a **Chat session**.

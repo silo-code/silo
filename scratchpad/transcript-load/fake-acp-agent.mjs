@@ -28,11 +28,54 @@ import { makeUpdates } from "./transcript-gen.mjs";
 // includes a tool call that stays `in_progress` for several seconds before
 // completing, because that gap is what defeats a naive "silence means idle"
 // read of the stream.
+//
+// --marker: stamp a Turn End Marker at the end of every `session/prompt` turn,
+// the way `claude-agent-acp` does — one `usage_update` carrying a `cost` and a
+// `_meta["_claude/origin"]`. This is a **precondition**, not decoration: it is
+// what teaches the host that this agent marks its own turn ends, which is the
+// state a session has to be in before an unmarked turn can strand it.
+//
+// --end marked|unmarked|silent: how the agent-initiated turn ends.
+//   marked   — cost + `_claude/origin: task-notification`. The happy path.
+//   unmarked — cost, no `_meta` at all. **The prod bug** (journal 2c4ce3fd,
+//              `claude-agent-acp@0.75.1`): read as "not a boundary", the turn
+//              never closes and the tab sits in Working until the process dies.
+//   silent   — no end frame whatsoever. Only the fallback clock can close this
+//              one, so it exercises the backstop rather than the marker.
 const argv = process.argv.slice(2);
 const TURNS = Number(argv[argv.indexOf("--turns") + 1]) || 0;
 const UNPROMPTED = argv.includes("--unprompted")
   ? Number(argv[argv.indexOf("--unprompted") + 1]) || 5
   : 0;
+const MARKER = argv.includes("--marker");
+const END_MODE = argv.includes("--end")
+  ? (argv[argv.indexOf("--end") + 1] ?? "marked")
+  : "marked";
+
+// A running meter, so the cost on a marker climbs the way a real one does and
+// the panel's header stat visibly moves.
+let used = 0;
+let spent = 0;
+
+/**
+ * The adapter's per-turn `usage_update`.
+ *
+ * `origin` omitted produces the frame that wedged prod: the `cost` is there —
+ * it is stamped once per turn, and it is the real boundary — but there is no
+ * `_meta` to read a provenance off. A host keying the boundary on the origin
+ * field sees nothing here and keeps the turn open forever.
+ */
+function usageUpdate({ origin }) {
+  used += 1200 + Math.floor(Math.random() * 800);
+  spent += 0.04 + Math.random() * 0.02;
+  return {
+    sessionUpdate: "usage_update",
+    used,
+    size: 1_000_000,
+    cost: { amount: Number(spent.toFixed(6)), currency: "USD" },
+    ...(origin ? { _meta: { "_claude/origin": { kind: origin } } } : {}),
+  };
+}
 
 let buf = "";
 process.stdin.setEncoding("utf8");
@@ -109,6 +152,15 @@ function handle(line) {
           },
         },
       });
+      // Lands last in the turn's stream, just before the response — and
+      // teaches the host this agent marks its turn ends.
+      if (MARKER) {
+        send({
+          jsonrpc: "2.0",
+          method: "session/update",
+          params: { sessionId: sid, update: usageUpdate({ origin: "human" }) },
+        });
+      }
       reply(id, { stopReason: "end_turn" });
       if (UNPROMPTED > 0)
         setTimeout(() => agentInitiatedTurn(sid), UNPROMPTED * 1000);
@@ -192,6 +244,13 @@ function agentInitiatedTurn(sessionId) {
         status: "completed",
       });
       text("Tests pass. Nothing needed from you.");
+      // How this turn ends — the whole point of `--end`. `silent` sends
+      // nothing at all and leaves the fallback clock as the only way out.
+      if (END_MODE === "marked") {
+        update(usageUpdate({ origin: "task-notification" }));
+      } else if (END_MODE === "unmarked") {
+        update(usageUpdate({ origin: undefined }));
+      }
       // The title the adapter regenerates at turn-over. Pure metadata — if the
       // host reads it as work, it reopens the turn it just closed, forever.
       setTimeout(

@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   isWorkUpdate,
-  turnEndOrigin,
+  turnEndMarker,
   toolCallFlight,
   TURN_QUIESCENCE_MS,
+  TURN_BACKSTOP_MS,
 } from "./chat-turn-signals";
 import type { AcpSessionUpdate } from "./acp-jsonrpc";
 
@@ -44,7 +45,7 @@ describe("isWorkUpdate", () => {
   });
 });
 
-describe("turnEndOrigin", () => {
+describe("turnEndMarker", () => {
   // The exact frames observed on the wire 2026-10-06 (dev app journal
   // c5d278e1): one marker per turn, carrying both the cost and the provenance.
   const humanMarker = u({
@@ -63,60 +64,116 @@ describe("turnEndOrigin", () => {
   });
 
   it("reads the host-prompted turn's marker as human", () => {
-    expect(turnEndOrigin(humanMarker)).toBe("human");
+    expect(turnEndMarker(humanMarker)).toEqual({ origin: "human" });
   });
 
   it("reads every other provenance as an agent-initiated turn", () => {
-    expect(turnEndOrigin(notificationMarker)).toBe("agent");
+    expect(turnEndMarker(notificationMarker)).toEqual({ origin: "agent" });
     expect(
-      turnEndOrigin(
+      turnEndMarker(
         u({
           sessionUpdate: "usage_update",
+          cost: { amount: 0.01, currency: "USD" },
           _meta: { "_claude/origin": { kind: "something-new" } },
         }),
       ),
-    ).toBe("agent");
+    ).toEqual({ origin: "agent" });
   });
 
-  it("ignores the mid-turn usage updates, which carry no origin", () => {
+  // The regression. `claude-agent-acp@0.75.1` ends an agent-initiated turn
+  // with a cost-bearing `usage_update` and no `_meta` at all — the exact last
+  // frame of prod journal 2c4ce3fd, which left its tab reading "Working" for
+  // 33 minutes after the agent had finished talking. The `cost` is the
+  // boundary; the origin is provenance layered on top when the agent bothers.
+  it("reads a cost-bearing frame as a boundary even with no provenance", () => {
+    expect(
+      turnEndMarker(
+        u({
+          sessionUpdate: "usage_update",
+          used: 190027,
+          size: 1000000,
+          cost: { amount: 4.631994800000001, currency: "USD" },
+        }),
+      ),
+    ).toEqual({ origin: undefined });
+  });
+
+  it("still reads one whose meta carries something other than an origin", () => {
+    // The shape of every mid-turn frame in that journal — except this one also
+    // has the per-turn `cost`.
+    expect(
+      turnEndMarker(
+        u({
+          sessionUpdate: "usage_update",
+          cost: { amount: 4.5, currency: "USD" },
+          _meta: { "_claude/rateLimit": { status: "allowed" } },
+        }),
+      ),
+    ).toEqual({ origin: undefined });
+  });
+
+  it("ignores the mid-turn usage updates, which carry neither", () => {
     // Nine `usage_update` frames in that session, only two of them markers.
     expect(
-      turnEndOrigin(u({ sessionUpdate: "usage_update", used: 25264 })),
+      turnEndMarker(u({ sessionUpdate: "usage_update", used: 25264 })),
+    ).toBeUndefined();
+    expect(
+      turnEndMarker(
+        u({
+          sessionUpdate: "usage_update",
+          used: 25264,
+          _meta: { "_claude/rateLimit": { status: "allowed" } },
+        }),
+      ),
     ).toBeUndefined();
   });
 
   it("only ever reads the marker off a usage_update", () => {
     expect(
-      turnEndOrigin(
+      turnEndMarker(
         u({
           sessionUpdate: "agent_message_chunk",
+          cost: { amount: 1, currency: "USD" },
           _meta: { "_claude/origin": { kind: "human" } },
         }),
       ),
     ).toBeUndefined();
   });
 
-  it("survives junk where the meta should be", () => {
-    expect(turnEndOrigin(u({ sessionUpdate: "usage_update" }))).toBeUndefined();
-    expect(
-      turnEndOrigin(u({ sessionUpdate: "usage_update", _meta: null })),
-    ).toBeUndefined();
-    expect(
-      turnEndOrigin(u({ sessionUpdate: "usage_update", _meta: [1, 2] })),
-    ).toBeUndefined();
-    expect(
-      turnEndOrigin(
-        u({ sessionUpdate: "usage_update", _meta: { "_claude/origin": 7 } }),
-      ),
-    ).toBeUndefined();
-    expect(
-      turnEndOrigin(
-        u({
-          sessionUpdate: "usage_update",
-          _meta: { "_claude/origin": { kind: 7 } },
-        }),
-      ),
-    ).toBeUndefined();
+  it("survives junk where the cost should be", () => {
+    for (const cost of [null, 0.5, "0.5", [1, 2]]) {
+      expect(
+        turnEndMarker(u({ sessionUpdate: "usage_update", cost })),
+        JSON.stringify(cost),
+      ).toBeUndefined();
+    }
+  });
+
+  it("survives junk where the meta should be, falling back to the cost", () => {
+    expect(turnEndMarker(u({ sessionUpdate: "usage_update" }))).toBeUndefined();
+    for (const meta of [
+      null,
+      [1, 2],
+      { "_claude/origin": 7 },
+      { "_claude/origin": { kind: 7 } },
+    ]) {
+      const label = JSON.stringify(meta);
+      expect(
+        turnEndMarker(u({ sessionUpdate: "usage_update", _meta: meta })),
+        label,
+      ).toBeUndefined();
+      // Unreadable provenance is not a reason to drop the boundary.
+      expect(
+        turnEndMarker(
+          u({
+            sessionUpdate: "usage_update",
+            cost: { amount: 1, currency: "USD" },
+            _meta: meta,
+          }),
+        ),
+        label,
+      ).toEqual({ origin: undefined });
+    }
   });
 });
 
@@ -193,4 +250,12 @@ it("gives a quiet turn longer than the terminal path's shell-idle fallback", () 
   // turn gets more silence than a shell zone does (SHELL_IDLE_MS, 3s), because
   // a model composing its next tool call goes quiet for seconds at a time.
   expect(TURN_QUIESCENCE_MS).toBeGreaterThan(3_000);
+});
+
+it("gives an agent that marks its turn ends a far longer leash, but a finite one", () => {
+  // Same point, one level up: the backstop exists only to catch a marker that
+  // never came, so it has to be long enough never to race a real one — and
+  // finite, because an infinite one is the bug it was written for.
+  expect(TURN_BACKSTOP_MS).toBeGreaterThan(TURN_QUIESCENCE_MS);
+  expect(Number.isFinite(TURN_BACKSTOP_MS)).toBe(true);
 });

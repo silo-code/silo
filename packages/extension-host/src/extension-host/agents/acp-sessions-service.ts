@@ -85,9 +85,10 @@ import {
 } from "./acp-update-model";
 import {
   isWorkUpdate,
-  turnEndOrigin,
+  turnEndMarker,
   toolCallFlight,
   TURN_QUIESCENCE_MS,
+  TURN_BACKSTOP_MS,
 } from "./chat-turn-signals";
 import {
   beginTurn,
@@ -665,12 +666,16 @@ export function createAgentSessionsService(
       /** Tool calls the agent has started and not yet settled. A turn with one
        *  of these outstanding is not over however long it goes quiet. */
       const toolCallsInFlight = new Set<string>();
-      /** Set the first time this session reports a `turnEndOrigin` marker.
-       *  Once an agent is known to mark its turn ends, that marker is
-       *  authoritative and the quiescence fallback is retired for the session
-       *  — learned rather than configured, and learned in time, because the
+      /** Set the first time this session reports a `turnEndMarker`. An agent
+       *  known to mark its turn ends is trusted to, so its fallback clock
+       *  widens from {@link TURN_QUIESCENCE_MS} to {@link TURN_BACKSTOP_MS} —
+       *  learned rather than configured, and learned in time, because the
        *  marker lands at the end of the user's *first* prompt turn, before any
-       *  agent-initiated turn can happen. */
+       *  agent-initiated turn can happen.
+       *
+       *  It widens; it no longer *retires*. Retiring it is what wedged a
+       *  production tab in "Working": one agent-initiated turn ended without a
+       *  marker and, with no clock left, nothing could ever close it. */
       let marksTurnEnds = false;
       let quiescenceTimer: ReturnType<typeof setTimeout> | null = null;
       /** True until `connect()` hands back its handle. A `session/load` restore
@@ -688,22 +693,26 @@ export function createAgentSessionsService(
         quiescenceTimer = null;
       }
 
-      /** Re-arm the "it went quiet, call it over" fallback. Never armed for an
-       *  agent that marks its own turn ends, and never while a tool call is
-       *  outstanding — the fire path re-arms instead of ending in that case,
-       *  so a long-running call holds the turn open for as long as it runs. */
+      /** Re-arm the "it went quiet, call it over" fallback — wide for an agent
+       *  that marks its own turn ends, tight for one that doesn't, and armed
+       *  either way. Never ends a turn while a tool call is outstanding: the
+       *  fire path re-arms instead, so a long-running call holds the turn open
+       *  for as long as it runs. */
       function armQuiescence(): void {
         clearQuiescence();
-        if (disposed || marksTurnEnds) return;
-        quiescenceTimer = setTimeout(() => {
-          quiescenceTimer = null;
-          if (disposed || !agentTurnOpen) return;
-          if (toolCallsInFlight.size > 0) {
-            armQuiescence();
-            return;
-          }
-          endAgentTurn("quiesced");
-        }, TURN_QUIESCENCE_MS);
+        if (disposed) return;
+        quiescenceTimer = setTimeout(
+          () => {
+            quiescenceTimer = null;
+            if (disposed || !agentTurnOpen) return;
+            if (toolCallsInFlight.size > 0) {
+              armQuiescence();
+              return;
+            }
+            endAgentTurn(marksTurnEnds ? "backstop: no marker" : "quiesced");
+          },
+          marksTurnEnds ? TURN_BACKSTOP_MS : TURN_QUIESCENCE_MS,
+        );
       }
 
       /** The agent is doing something the host never asked for: open a turn if
@@ -995,22 +1004,26 @@ export function createAgentSessionsService(
           // agent starts on its own has no start and no end of its own — the
           // stream is the only evidence there is, and before this the host
           // never learned such a turn was running at all.
-          const endOrigin = turnEndOrigin(update);
-          if (endOrigin) {
+          const marker = turnEndMarker(update);
+          if (marker) {
             // Learned, not configured: an agent that marks its turn ends is
-            // trusted to, and its quiescence fallback retires for good.
+            // trusted to, and its fallback clock widens to the backstop window.
+            // Re-armed rather than cancelled — a marker that never comes is
+            // precisely what the clock now has to survive.
             if (!marksTurnEnds) {
               marksTurnEnds = true;
-              clearQuiescence();
+              if (agentTurnOpen) armQuiescence();
               agentsChannel.debug(
-                `[${label}] agent marks its own turn ends; quiescence fallback disabled for ${persistSessionId}.`,
+                `[${label}] agent marks its own turn ends; fallback for ${persistSessionId} widened to ${TURN_BACKSTOP_MS}ms.`,
               );
             }
             // A marker for a turn the host prompted is *information*, not a
             // transition: `prompt()`'s own promise owns that turn's end and
             // ending it here would resolve the phase before the stream has
             // finished delivering it.
-            if (promptsInFlight === 0) endAgentTurn(`origin: ${endOrigin}`);
+            if (promptsInFlight === 0) {
+              endAgentTurn(`origin: ${marker.origin ?? "unmarked"}`);
+            }
           }
           const flight = toolCallFlight(update);
           if (flight) {
