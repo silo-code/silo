@@ -746,14 +746,17 @@
   overflow-wrap: anywhere;
 }
 
-/* A fenced block already lives in this well — don't paint a second box. */
-.acp-chat__tool-pre--md .acp-chat__md pre {
-  margin: 0;
-  padding: 0;
+/* A fenced block already lives in this well — don't paint a second box.
+   The toolbar still rides along: copy is as useful on a fence inside tool
+   output as on one in the agent's prose. */
+.acp-chat__tool-pre--md .acp-chat__md .acp-chat__code {
   border: 0;
   background: none;
   border-radius: 0;
-  overflow: visible;
+}
+
+.acp-chat__tool-pre--md .acp-chat__md .acp-chat__code pre {
+  padding: 0;
 }
 
 .acp-chat__tool-pre--md .acp-chat__md pre code,
@@ -1715,7 +1718,7 @@
 .acp-chat__md ul,
 .acp-chat__md ol,
 .acp-chat__md blockquote,
-.acp-chat__md pre,
+.acp-chat__md .acp-chat__code,
 .acp-chat__md table {
   margin: 0 0 8px;
 }
@@ -1750,19 +1753,90 @@
   padding: 1px 4px;
 }
 
-.acp-chat__md pre {
+/* A fenced block and its toolbar. The box lives on this wrapper rather than
+   the `<pre>` so the buttons can sit inside the border without being carried
+   along when the `<pre>` scrolls sideways.
+
+   The toolbar is a *gutter*, not an overlay: a flex row puts it beside the
+   code rather than on top of it, so always-on buttons never occlude the
+   first line the way a floating cluster would on a one-line block. */
+.acp-chat__code {
+  /* The gutter column's own width, named so the measure below can add it
+     back: `sm` IconButtons are 2em of the base font size, plus this
+     element's 4px padding on each side. */
+  --acp-code-gutter: calc(2 * var(--silo-font-size-base) + 8px);
+
+  display: flex;
+  align-items: flex-start;
+
+  /* Fills a narrow panel and stops growing on a wide one. No media query:
+     `max-width` simply doesn't bind until there's more room than the cap.
+
+     The wrapper carries the code's own font so `ch` here means one
+     *monospace column* — the cap reads as "about 120 characters of code" and
+     tracks `uiFontSize` the way a pixel value wouldn't. The gutter is added
+     back so those 120 columns belong to the code rather than to the box. */
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  max-width: calc(120ch + var(--acp-code-gutter));
   background: var(--silo-color-bg);
   border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-md);
+}
+
+.acp-chat__md .acp-chat__code pre {
+  /* `min-width: 0` is what lets the code scroll inside the flex row instead
+     of widening it — without it a long line pushes the gutter off the edge. */
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   padding: 8px 10px;
   /* A wide code block scrolls inside its own box; the transcript never does. */
   overflow-x: auto;
   overscroll-behavior: contain;
 }
 
+/* Wrapped: no sideways scroll at all, and long unbroken runs (a URL, a
+   base64 blob) break mid-token rather than forcing the box wide. */
+.acp-chat__md .acp-chat__code[data-wrap="on"] pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+}
+
 .acp-chat__md pre code {
   background: none;
   padding: 0;
+}
+
+/* Always on, stacked in the right-hand gutter (Dave's call) — a block's
+   actions shouldn't need to be discovered by hovering. Dimmed at rest so a
+   transcript of fenced blocks doesn't read as a column of chrome; full
+   strength once the pointer is anywhere on the block. */
+.acp-chat__code-actions {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  box-sizing: border-box;
+  /* Pinned rather than left to the buttons, so `--acp-code-gutter` is the
+     real width and the measure above stays honest. */
+  width: var(--acp-code-gutter);
+  gap: 2px;
+  padding: 4px;
+  opacity: 0.55;
+  transition: opacity 120ms ease;
+}
+
+.acp-chat__code:hover .acp-chat__code-actions,
+.acp-chat__code-actions:focus-within {
+  opacity: 1;
+}
+
+/* The toggle's on-state: the kit's `toolbar` variant paints hover only, so
+   "wrapping is on" needs its own resting treatment to be readable at a
+   glance rather than only via the tooltip. */
+.acp-chat__code-actions button[aria-pressed="true"] {
+  color: var(--silo-color-accent);
 }
 
 .acp-chat__md blockquote {

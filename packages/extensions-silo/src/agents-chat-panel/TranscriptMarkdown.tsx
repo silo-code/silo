@@ -17,6 +17,9 @@
  *   document.
  * - **GFM on**, for tables, strikethrough and task lists, which agents use.
  *
+ * A **fenced block** gets chrome the rest of the markdown doesn't: a gutter
+ * with copy and a per-block wrap toggle. See {@link CodeBlock}.
+ *
  * Agent prose and fenced tool-call output go through here. A **user**
  * message is rendered literally: it is what they typed, and silently
  * reinterpreting their asterisks would be wrong.
@@ -27,10 +30,16 @@ import {
   cloneElement,
   isValidElement,
   memo,
+  useState,
+  type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ArrowElbowDownLeft } from "@phosphor-icons/react";
+import { IconButton, Tooltip } from "@silo-code/sdk";
+import { codeBlockFacts } from "./code-block";
+import { CopyButton } from "./CopyButton";
 import { kindFromHref } from "./link-match";
 import { LinkifiedText } from "./LinkifiedText";
 
@@ -46,6 +55,59 @@ function linkifyNodes(children: ReactNode): ReactNode {
       children: linkifyNodes(child.props.children),
     });
   });
+}
+
+/**
+ * A fenced block, with the two things the transcript was missing: a way to
+ * read a long line without dragging a scrollbar, and a way to take the
+ * content. Both live in a gutter down the block's right edge.
+ *
+ * Wrapping is a per-block toggle rather than a global setting, seeded from
+ * {@link codeBlockFacts} — prose wraps, code scrolls, and one click fixes
+ * either guess. The state is deliberately local and unpersisted: it is a way
+ * of looking at one block in one turn, not a preference.
+ */
+function CodeBlock({
+  node,
+  children,
+  ...rest
+}: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) {
+  const { language, text, wrapped: initiallyWrapped } = codeBlockFacts(node);
+  const [wrapped, setWrapped] = useState(initiallyWrapped);
+
+  const wrapLabel = wrapped ? "Don't wrap lines" : "Wrap lines";
+  return (
+    <div
+      className="acp-chat__code"
+      data-wrap={wrapped ? "on" : "off"}
+      data-language={language}
+    >
+      <pre {...rest}>{children}</pre>
+      {/* A stacked gutter down the block's right edge, always visible — see
+          the CSS. After the `<pre>` in both source and flex order: it reads
+          right, and it puts the code ahead of its actions in the tab order.
+          Wrap sits above copy — the toggle changes what you're looking at. */}
+      <div className="acp-chat__code-actions">
+        <Tooltip content={wrapLabel}>
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            aria-label={wrapLabel}
+            aria-pressed={wrapped}
+            onClick={() => setWrapped((on) => !on)}
+          >
+            <ArrowElbowDownLeft size="1em" aria-hidden="true" />
+          </IconButton>
+        </Tooltip>
+        <CopyButton
+          text={text}
+          label="Copy code"
+          tooltip="Copy"
+          variant="toolbar"
+        />
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -87,6 +149,7 @@ export const TranscriptMarkdown = memo(function TranscriptMarkdown({
           code: ({ children, className }) => (
             <code className={className}>{linkifyNodes(children)}</code>
           ),
+          pre: CodeBlock,
         }}
       >
         {text}
