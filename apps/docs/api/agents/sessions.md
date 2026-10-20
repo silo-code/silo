@@ -226,6 +226,14 @@ updates, both carrying
 | `elicitation`            | The agent asked this. `resolution` is absent — it is still open. |
 | `elicitation_resolution` | How it ended, on `resolution`. Patch the row the first one made. |
 
+An `"answered"` resolution also carries `answers`: what the user said, keyed
+by question id and written as **the text they saw** — the option's label, a
+comma-joined list for a multi-select, `"Yes"`/`"No"`, or whatever they typed.
+Deliberately not the payload the agent received, which speaks in option
+`value`s and routes typed text to a companion field; replaying that would show
+the user identifiers they never picked. A question left unanswered contributes
+no key.
+
 `resolution` is `"answered"`, `"skipped"`, `"cancelled"` — or
 `"interrupted"`, the one Silo writes on its own behalf: the question was still
 open when the session went away (a reload, a restart, a closed panel), so no

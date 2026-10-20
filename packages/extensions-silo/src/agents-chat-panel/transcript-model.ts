@@ -170,6 +170,10 @@ export interface QuestionEntry {
    * it. Settled by the time anything can be done about it either way.
    */
   readonly resolution?: AgentElicitationResolution;
+  /** What the user answered, keyed by question id and written as the text they
+   *  saw — see {@link AgentElicitationRecord.answers}. Only ever set alongside
+   *  an `"answered"` resolution. */
+  readonly answers?: Readonly<Record<string, string>>;
 }
 
 /** A line of Silo's own commentary in the flow of the transcript — a stop
@@ -616,11 +620,12 @@ export function applyUpdate(
     if (update.kind === "elicitation_resolution") {
       const resolution = elicitation.resolution;
       if (!resolution) return t;
+      const answers = elicitation.answers;
       let found = false;
       const entries = t.entries.map((e) => {
         if (e.type !== "question" || e.elicitationId !== id) return e;
         found = true;
-        return { ...e, resolution };
+        return { ...e, resolution, ...(answers ? { answers } : {}) };
       });
       return found ? { ...t, entries } : t;
     }
@@ -644,9 +649,12 @@ export function applyUpdate(
           message: elicitation.message ?? "",
           questions: elicitation.questions ?? [],
           acknowledgeOnly: elicitation.acknowledgeOnly ?? false,
+          // Both, or the day someone merges the two frames into one the
+          // answers would silently stop arriving.
           ...(elicitation.resolution
             ? { resolution: elicitation.resolution }
             : {}),
+          ...(elicitation.answers ? { answers: elicitation.answers } : {}),
         },
       ],
     };

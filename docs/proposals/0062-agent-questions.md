@@ -222,6 +222,15 @@ the next prompt.
   contains no elicitations — ACP never echoes `elicitation/create` into the
   session stream. Unresolved ones are carried over explicitly, or the restore
   meant to bring the conversation back is what erases the question.
+
+  **Only the unresolved ones**, which is a real limit worth stating now that
+  the settled row carries the user's answers: on a `load`-capable agent a
+  restore drops those rows, so "you told it develop" is _not_ durable there.
+  It survives a `session/resume` reconnect and a journal-only restore, where
+  nothing rewrites the file. Carrying the settled ones too would mean
+  reconciling Silo's own rows against the agent's replay of the same
+  conversation — worth doing, not worth doing here.
+
 - **A question's id must be unique over the _journal_, not the connection.**
   It is the join key between the two rows and the live card, so a
   per-connection counter (the `userMsgSeq` pattern) restarts at 1 over a file
@@ -259,6 +268,71 @@ the next prompt.
   one, but `dispose()` writes the same resolution for a closed panel, a
   profile switch, or a session reset.
 
+## Follow-up: the question card is tabbed
+
+One question at a time, in a tab strip labelled by the agent's own short
+headers — the layout Claude Code's CLI uses for the same payload.
+
+**The protocol has no notion of tabs, and nothing was missed.** An
+`elicitation/create` carries a flat `requestedSchema.properties` with no
+grouping, ordering, or layout hint; each property has a `title` (the adapter
+maps `AskUserQuestion`'s per-question `header` onto it, `elicitation.js:139`)
+and a `description` (the question text). Claude's own tool documents `header`
+as "a very short label displayed as a chip/tag", not as a tab. Stacking the
+questions, which is what Silo did first, is exactly as faithful a reading as
+tabbing them. This is a presentation decision, made on its own merits.
+
+The merit: the Chat panel is narrow, and a two-question ask with described
+options already filled it top to bottom. Tabs make the card's height constant
+in the number of questions.
+
+- **Always tabbed, even for one question** (Dave's call). A lone tab is
+  arguably chrome, but every ask then reads the same, and the agent's header
+  always has somewhere to sit rather than appearing only above some asks.
+- **The strip carries answered state**, and has to. Showing one question at a
+  time means "did I answer the other one?" is otherwise unanswerable without
+  clicking through — that is the cost tabs trade for their height, and the
+  per-tab marker is what buys it back.
+- **The free-text answer became an option in the list**, revealing its box
+  when picked, instead of a box standing permanently open under every
+  question with its helper text beneath it. That box was most of the card's
+  bulk. Only for a question that _has_ options: a `text` question already is a
+  free-text answer, and a second box below it would ask the same thing twice.
+  Typing in it deselects the options — **including a multi-select's ticks**.
+  An earlier reading had the ticks surviving, on the grounds that the user
+  might be adding a note to them; that does not survive the protocol. The
+  agent reads a non-empty custom answer _instead of_ the selection whatever
+  the kind, so ticks kept beside typed text would be ticks nobody receives
+  and the card would be showing an answer the agent discards. The rule runs
+  both ways: ticking an option after typing hands the selection back and the
+  typed draft stops being the chosen answer. The draft itself is never
+  deleted — it is simply held out of the payload (`effectiveAnswers`), since
+  retyping something you already wrote is a worse cost than leaving it on
+  screen.
+- **Not copied from the CLI:** Submit-as-a-tab (a workaround for a TUI with no
+  buttons — Silo has real Send / Skip / Cancel), numbered options, and
+  "Chat about this" (our Skip already is that). The settled, read-only row
+  from the reload work also stays a plain list: it is history, not an ask, and
+  nothing there is worth hiding behind a tab.
+
+- **The settled row says what you answered**, not merely that you did. The
+  resolution update carries an `answers` map on the public
+  `AgentElicitationRecord` — written as **the text the user saw** (the
+  option's label, a comma-joined multi-select, `Yes`/`No`, or what they
+  typed), not the payload the agent received. That one speaks in option
+  `value`s and routes typed text to a companion field, so replaying it would
+  show identifiers nobody picked. `toAnswerSummary` is the second projection,
+  and it applies the same two rules as `toElicitationContent` — typed text
+  beats the selection, and a typed answer with no companion field is ignored
+  because there is nowhere to put it.
+
+Built on the kit's `Tabs` / `TabPanel` (`TabItem.icon` takes the answered
+marker directly), so the only new public surface is that one `answers` field.
+The marker carries an accessible name rather than `aria-hidden`: showing one
+question at a time is what makes it necessary, so hiding it from assistive
+tech would take the affordance from exactly the users who cannot glance at
+the strip to recover it.
+
 Not carried over: **permission requests** have the same hole and keep it for
 now. They are a separate, older surface with no record of the options offered,
 and the fix is only worth copying once this one has been lived with. The
@@ -280,10 +354,5 @@ vacuity check on every new branch.
 - **`boolean` / `number` controls are built but unexercised live.**
   `askUserQuestionsToCreateRequest` only ever emits single- and multi-select,
   so Claude cannot produce them; they would need an MCP server that elicits.
-- **The answers in the settled row.** A row resolved `"answered"` says that it
-  was answered, not what with — the resolution update carries no content. Cheap
-  to add (the `respond` payload is serializable) and deliberately left until
-  someone wants it, since the case that mattered was the one with no answer at
-  all.
 - **`blockedReason`** on `AgentInfo` — would let the status say _which_ kind of
   answer is wanted. Additive; deferred, not foreclosed.

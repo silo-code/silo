@@ -1,6 +1,6 @@
 # Interface: AgentElicitationRequest
 
-Defined in: [packages/sdk/src/agents-service.ts:1510](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1510)
+Defined in: [packages/sdk/src/agents-service.ts:1522](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1522)
 
 **`Beta`**
 
@@ -30,7 +30,7 @@ extension's behalf so the agent is never left hanging.
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1517](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1517)
+Defined in: [packages/sdk/src/agents-service.ts:1529](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1529)
 
 **`Beta`**
 
@@ -47,7 +47,7 @@ is never drawn twice.
 readonly message: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1520](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1520)
+Defined in: [packages/sdk/src/agents-service.ts:1532](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1532)
 
 **`Beta`**
 
@@ -62,7 +62,7 @@ The human-readable ask. For a single-question form this *is* the
 readonly questions: readonly AgentElicitationQuestion[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1522](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1522)
+Defined in: [packages/sdk/src/agents-service.ts:1534](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1534)
 
 **`Beta`**
 
@@ -76,7 +76,7 @@ The questions to put to the user, in the agent's order.
 readonly acknowledgeOnly: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1528](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1528)
+Defined in: [packages/sdk/src/agents-service.ts:1540](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1540)
 
 **`Beta`**
 
@@ -92,7 +92,7 @@ field to answer, an empty answer is the complete and correct reply.
 readonly optional toolCallId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1531](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1531)
+Defined in: [packages/sdk/src/agents-service.ts:1543](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1543)
 
 **`Beta`**
 
@@ -107,7 +107,7 @@ The tool call this question belongs to, when the agent sent one — the
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1534](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1534)
+Defined in: [packages/sdk/src/agents-service.ts:1546](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1546)
 
 **`Beta`**
 
@@ -122,7 +122,7 @@ The raw Agent Client Protocol `elicitation/create` params, including
 respond(answers): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1543](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1543)
+Defined in: [packages/sdk/src/agents-service.ts:1555](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1555)
 
 **`Beta`**
 
@@ -151,7 +151,7 @@ the first call wins and later ones are ignored.
 decline(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1549](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1549)
+Defined in: [packages/sdk/src/agents-service.ts:1561](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1561)
 
 **`Beta`**
 
@@ -171,7 +171,7 @@ decision, never Silo's.
 cancel(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1555](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1555)
+Defined in: [packages/sdk/src/agents-service.ts:1567](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1567)
 
 **`Beta`**
 

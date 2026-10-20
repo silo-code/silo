@@ -1482,6 +1482,18 @@ export interface AgentElicitationRecord {
   /** How it ended. `undefined` on the opening `"elicitation"` update — the
    *  question was still open at that point. */
   readonly resolution?: AgentElicitationResolution;
+  /**
+   * What the user answered, keyed by {@link AgentElicitationQuestion.id} and
+   * written as **the text they saw** — the option's label, a comma-joined list
+   * for a multi-select, `"Yes"`/`"No"`, or whatever they typed.
+   *
+   * Deliberately not the payload the agent received: that one speaks in option
+   * `value`s and routes a typed answer to its own field, so replaying it to the
+   * user would show them identifiers they never picked. Present only on an
+   * `"answered"` resolution, and only for the questions that got an answer —
+   * a skipped question contributes no key.
+   */
+  readonly answers?: Readonly<Record<string, string>>;
 }
 
 /**

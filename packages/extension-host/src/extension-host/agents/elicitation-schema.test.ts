@@ -4,6 +4,7 @@ import {
   toElicitationContent,
   type ElicitationContent,
   type ElicitationQuestion,
+  toAnswerSummary,
 } from "./elicitation-schema";
 
 /** `elicitation/create` params wrapping a flat object schema. */
@@ -763,5 +764,98 @@ describe("round trip — Claude's AskUserQuestion bridge", () => {
     expect(
       readBackAnswers(content, [{ question: "Should I use TypeScript?" }]),
     ).toEqual({ "Should I use TypeScript?": "Yes" });
+  });
+});
+
+describe("toAnswerSummary — the answers in the user's own words", () => {
+  const questions = [
+    {
+      id: "branch",
+      kind: "select" as const,
+      prompt: "Which branch?",
+      options: [
+        { value: "main", label: "main" },
+        { value: "dev", label: "develop" },
+      ],
+      custom: { field: "branch_custom", label: "Other" },
+    },
+    {
+      id: "tools",
+      kind: "multi-select" as const,
+      prompt: "Which tools?",
+      options: [
+        { value: "a", label: "Auth" },
+        { value: "b", label: "Billing" },
+      ],
+    },
+  ];
+
+  // The whole reason this is not the wire payload: the agent receives the
+  // option's `value`, which is an identifier the user never saw.
+  it("reads back the label the user picked, not the value sent", () => {
+    expect(toAnswerSummary(questions, { branch: { value: "dev" } })).toEqual({
+      branch: "develop",
+    });
+  });
+
+  it("joins a multi-select into one readable line", () => {
+    expect(
+      toAnswerSummary(questions, { tools: { value: ["a", "b"] } }),
+    ).toEqual({ tools: "Auth, Billing" });
+  });
+
+  it("shows typed text in preference to a selection, as the agent reads it", () => {
+    expect(
+      toAnswerSummary(questions, {
+        branch: { value: "main", custom: "a release branch" },
+      }),
+    ).toEqual({ branch: "a release branch" });
+  });
+
+  it("writes a boolean as the words the user clicked", () => {
+    const yesNo = [{ id: "tests", kind: "boolean" as const, prompt: "Tests?" }];
+    expect(toAnswerSummary(yesNo, { tests: { value: true } })).toEqual({
+      tests: "Yes",
+    });
+    expect(toAnswerSummary(yesNo, { tests: { value: false } })).toEqual({
+      tests: "No",
+    });
+  });
+
+  // "Answered nothing here" has to stay distinguishable from "answered with
+  // an empty string" — the row says "Not answered" for the former.
+  it("contributes no key for a question left alone", () => {
+    expect(toAnswerSummary(questions, { branch: { value: "main" } })).toEqual({
+      branch: "main",
+    });
+    expect(toAnswerSummary(questions, {})).toEqual({});
+    expect(toAnswerSummary(questions, { branch: { custom: "   " } })).toEqual(
+      {},
+    );
+  });
+
+  // Must match `toElicitationContent`'s rule exactly: with no companion field
+  // there is nowhere to put the text, so the agent receives the selection —
+  // and showing the text as the recorded answer would misreport that.
+  it("ignores typed text on a question with no companion field, as the payload does", () => {
+    const noCompanion = [
+      {
+        id: "branch",
+        kind: "select" as const,
+        prompt: "Which branch?",
+        options: [{ value: "main", label: "main" }],
+      },
+    ];
+    expect(
+      toAnswerSummary(noCompanion, {
+        branch: { value: "main", custom: "a release branch" },
+      }),
+    ).toEqual({ branch: "main" });
+  });
+
+  it("falls back to the raw value when no option matches it", () => {
+    expect(toAnswerSummary(questions, { branch: { value: "ghost" } })).toEqual({
+      branch: "ghost",
+    });
   });
 });

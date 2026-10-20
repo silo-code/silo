@@ -76,6 +76,8 @@ import {
   ArrowsLeftRight,
   CaretDown,
   CaretRight,
+  CheckCircle,
+  Circle,
   Command,
   Copy,
   FileText,
@@ -125,7 +127,8 @@ import {
   MenuButton,
   RadioCard,
   RadioGroup,
-  Section,
+  TabPanel,
+  Tabs,
   Textarea,
   Tooltip,
   usePanelEntryFocus,
@@ -247,7 +250,18 @@ import {
   toggleMultiSelect,
   type QuestionFormState,
 } from "./question-form";
+import { patchByKey, removeByKey } from "./pending-list";
 import { questionOutcome, showQuestionRow } from "./question-row";
+import {
+  activeQuestion,
+  CUSTOM_OPTION_VALUE,
+  customIsAnOption,
+  effectiveAnswers,
+  isCustomChosen,
+  questionTabs,
+  setCustomChosen,
+  typeCustomAnswer,
+} from "./question-tabs";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import {
   ChatLinkSpan,
@@ -409,6 +423,15 @@ interface PendingQuestion {
   readonly key: string;
   readonly request: AgentElicitationRequest;
   readonly form: QuestionFormState;
+  /** Which question's tab is showing. */
+  readonly activeId: string;
+  /**
+   * Questions whose free-text box the user has opened. UI state, not answer
+   * state, which is why it is here and not in {@link QuestionFormState} —
+   * that model is about what the agent will receive, and an open-but-empty
+   * box contributes nothing to it.
+   */
+  readonly customChosen: ReadonlySet<string>;
 }
 
 /**
@@ -426,29 +449,54 @@ function QuestionField({
   question,
   form,
   single,
+  customChosen,
   onEdit,
+  onToggleCustom,
 }: {
   question: AgentElicitationQuestion;
   form: QuestionFormState;
   /** A single-question form already shows its prompt as the card's message. */
   single: boolean;
+  /** The free-text box is showing — see {@link isCustomChosen}. */
+  customChosen: boolean;
   onEdit: (edit: (form: QuestionFormState) => QuestionFormState) => void;
+  onToggleCustom: (next: boolean) => void;
 }) {
   const { id, kind, options = [], custom } = question;
-  // The card's own title repeats a lone question's prompt, so label the field
-  // with its header if it has one and nothing otherwise.
-  const label = single
-    ? (question.title ?? "")
-    : (question.title ?? question.prompt);
+  // "Type my own answer" as the last entry of the list rather than a box
+  // standing permanently open beneath it. Only where there are options to
+  // escape from; see `customIsAnOption`.
+  const customAsOption = customIsAnOption(question);
+  const customLabel = custom?.label ?? "Other";
+  // The radio shows "Other" selected while the box is open, so picking it
+  // visibly clears the options — which is what it does to the answer.
+  const selected = customChosen ? CUSTOM_OPTION_VALUE : controlValue(form, id);
+  const pickOption = (value: string) => {
+    if (value === CUSTOM_OPTION_VALUE) {
+      onToggleCustom(true);
+      onEdit((f) => setAnswerValue(f, id, undefined));
+      return;
+    }
+    // The typed draft **survives** — it is simply not the chosen answer any
+    // more, and `effectiveAnswers` is what keeps it out of the payload.
+    // Deleting it would throw away something the user wrote, on a click that
+    // reads as "actually, this one instead" rather than "forget what I typed".
+    onToggleCustom(false);
+    onEdit((f) => setAnswerValue(f, id, value));
+  };
+  // Typing *is* choosing "Other": it moves the selection off the options, so
+  // the control never shows an option the agent would be overruling anyway.
+  // See `typeCustomAnswer` for why that holds for a multi-select too.
+  const typeCustom = (text: string) => {
+    onToggleCustom(text !== "");
+    onEdit((f) => typeCustomAnswer(f, question, text));
+  };
 
   let control: ReactNode;
   switch (kind) {
     case "select":
       control = (
-        <RadioGroup
-          value={controlValue(form, id)}
-          onChange={(value) => onEdit((f) => setAnswerValue(f, id, value))}
-        >
+        <RadioGroup value={selected} onChange={pickOption}>
           {options.map((option) => (
             <RadioCard
               key={option.value}
@@ -459,6 +507,15 @@ function QuestionField({
                 : {})}
             />
           ))}
+          {customAsOption ? (
+            <RadioCard
+              value={CUSTOM_OPTION_VALUE}
+              title={`${customLabel}…`}
+              {...(custom?.description !== undefined
+                ? { description: custom.description }
+                : {})}
+            />
+          ) : null}
         </RadioGroup>
       );
       break;
@@ -470,11 +527,38 @@ function QuestionField({
               key={option.value}
               label={option.label}
               checked={isOptionSelected(form, id, option.value)}
-              onChange={() =>
-                onEdit((f) => toggleMultiSelect(f, id, option.value))
-              }
+              onChange={() => {
+                // Ticking is choosing the options, so the typed answer stops
+                // being the chosen one — without this the card showed ticks
+                // while the agent received only the text, which is the exact
+                // mismatch `effectiveAnswers` exists to prevent (it cannot
+                // catch this case: the custom answer *was* still chosen).
+                onToggleCustom(false);
+                onEdit((f) => toggleMultiSelect(f, id, option.value));
+              }}
             />
           ))}
+          {/* Ticking this clears the ticks above, exactly as the single-select
+              case clears its radio. The earlier reading — that the user might
+              be *adding* a typed note to their ticks — does not survive the
+              protocol: the agent reads a non-empty custom answer instead of
+              the selection, whatever the kind, so ticks kept beside it would
+              be ticks nobody receives. */}
+          {customAsOption ? (
+            <CheckboxRow
+              label={`${customLabel}…`}
+              checked={customChosen}
+              onChange={() => {
+                const next = !customChosen;
+                onToggleCustom(next);
+                // Choosing it clears the ticks, for the reason above; letting
+                // it go keeps whatever was typed, which `effectiveAnswers`
+                // then holds back from the payload.
+                if (next) onEdit((f) => setAnswerValue(f, id, undefined));
+                else onEdit((f) => setCustomAnswer(f, id, ""));
+              }}
+            />
+          ) : null}
         </div>
       );
       break;
@@ -514,12 +598,13 @@ function QuestionField({
 
   return (
     <div className="acp-chat__question-field">
-      {/* A question whose prompt is longer than a header reads better above
-          the control than squeezed into the uppercase `Section` label. */}
-      {!single && question.title !== undefined ? (
+      {/* The prompt, unless the card's own message already is it. */}
+      {!single ? (
         <div className="acp-chat__question-prompt">{question.prompt}</div>
       ) : null}
-      {label ? <Section label={label}>{control}</Section> : control}
+      {/* No `Section` label: the tab above already carries the header, and a
+          second copy of the same word is pure chrome. */}
+      {control}
       {/* The companion free-text box, inline under its own question — it is
           structurally a sibling field, but it belongs to this question and the
           agent reads a non-empty one *instead of* the selection. */}
@@ -527,12 +612,12 @@ function QuestionField({
         <div className="acp-chat__question-custom">
           <Input
             value={customValue(form, id)}
-            onChange={(e) =>
-              onEdit((f) => setCustomAnswer(f, id, e.target.value))
-            }
+            onChange={(e) => typeCustom(e.target.value)}
             placeholder={custom.label ?? "Other"}
           />
-          {custom.description ? (
+          {/* Where the box sits under an "Other" option, that option already
+              carried this line — repeating it here would say it twice. */}
+          {custom.description && !customAsOption ? (
             <div className="acp-chat__question-hint">{custom.description}</div>
           ) : null}
         </div>
@@ -1355,12 +1440,27 @@ function renderTranscriptEntry(
             as a list of topics and never says what was wanted — caught live,
             2026-10-19. Only for a multi-question ask: a lone question's
             prompt repeats the message shown above. */}
-        {entry.questions.length > 1
-          ? entry.questions.map((q) => (
-              <div key={q.id} className="acp-chat__question-asked">
-                {q.prompt}
-              </div>
-            ))
+        {entry.questions.length > 1 || entry.answers
+          ? entry.questions.map((q) => {
+              const said = entry.answers?.[q.id];
+              return (
+                <div key={q.id} className="acp-chat__question-asked">
+                  {entry.questions.length > 1 ? (
+                    <span className="acp-chat__question-asked-prompt">
+                      {q.prompt}
+                    </span>
+                  ) : null}
+                  {/* The pairing is the point: an answer alone ("develop") is
+                      unreadable a screen later, and a question alone does not
+                      say what the agent went away and acted on. */}
+                  {entry.answers ? (
+                    <span className="acp-chat__question-said">
+                      {said ?? "Not answered"}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })
           : null}
         {outcome !== undefined ? (
           <div className="acp-chat__question-outcome">{outcome}</div>
@@ -1966,6 +2066,8 @@ export function AcpChatPanel({
                 key: `q${++questionSeq.current}`,
                 request,
                 form: initialFormState(),
+                activeId: request.questions[0]?.id ?? "",
+                customChosen: new Set<string>(),
               },
             ]);
           }),
@@ -2363,17 +2465,48 @@ export function AcpChatPanel({
 
   const answer = useCallback((pending: PendingPermission, optionId: string) => {
     pending.request.respond(optionId);
-    setPermissions((prev) => prev.filter((p) => p !== pending));
+    setPermissions((prev) => removeByKey(prev, pending.key));
   }, []);
 
-  /** Edit one open question's form without touching any other. */
+  /**
+   * Edit one open question's form without touching any other.
+   *
+   * Matched on `key`, never on object identity. Two of these can run from one
+   * handler — picking an option both clears the typed answer and moves the
+   * selection — and the first replaces the entry, so an identity check in the
+   * second would no longer match anything and that update would vanish. That
+   * is exactly what made every radio but "Other" unclickable.
+   */
   const editQuestion = useCallback(
     (
       pending: PendingQuestion,
       edit: (form: QuestionFormState) => QuestionFormState,
     ) => {
       setQuestions((prev) =>
-        prev.map((q) => (q === pending ? { ...q, form: edit(q.form) } : q)),
+        patchByKey(prev, pending.key, (q) => ({ ...q, form: edit(q.form) })),
+      );
+    },
+    [],
+  );
+
+  /** Switch which question's tab is showing, without touching its answers. */
+  const selectQuestionTab = useCallback(
+    (pending: PendingQuestion, activeId: string) => {
+      setQuestions((prev) =>
+        patchByKey(prev, pending.key, (q) => ({ ...q, activeId })),
+      );
+    },
+    [],
+  );
+
+  /** Open or close one question's free-text box. */
+  const toggleQuestionCustom = useCallback(
+    (pending: PendingQuestion, id: string, next: boolean) => {
+      setQuestions((prev) =>
+        patchByKey(prev, pending.key, (q) => ({
+          ...q,
+          customChosen: setCustomChosen(q.customChosen, id, next),
+        })),
       );
     },
     [],
@@ -2386,10 +2519,17 @@ export function AcpChatPanel({
    */
   const answerQuestion = useCallback(
     (pending: PendingQuestion, action: "send" | "skip" | "cancel") => {
-      if (action === "send") pending.request.respond(pending.form);
-      else if (action === "skip") pending.request.decline();
+      if (action === "send") {
+        pending.request.respond(
+          effectiveAnswers(
+            pending.form,
+            pending.request.questions,
+            pending.customChosen,
+          ),
+        );
+      } else if (action === "skip") pending.request.decline();
       else pending.request.cancel();
-      setQuestions((prev) => prev.filter((q) => q !== pending));
+      setQuestions((prev) => removeByKey(prev, pending.key));
     },
     [],
   );
@@ -3692,20 +3832,70 @@ export function AcpChatPanel({
             conversation that explains what is being asked. */}
         {questions.map((pending) => {
           const { request, form } = pending;
-          const sendable = canSubmit(form, request.questions);
-          const answered = answeredCount(form, request.questions);
+          const active = activeQuestion(request.questions, pending.activeId);
+          // What the agent would actually receive — an abandoned draft is
+          // still in `form` (the box shows it) but counts for nothing here.
+          const sending = effectiveAnswers(
+            form,
+            request.questions,
+            pending.customChosen,
+          );
+          const sendable = canSubmit(sending, request.questions);
+          const answered = answeredCount(sending, request.questions);
           return (
             <div key={pending.key} className="acp-chat__question">
               <div className="acp-chat__question-title">{request.message}</div>
-              {request.questions.map((q) => (
-                <QuestionField
-                  key={q.id}
-                  question={q}
-                  form={form}
-                  single={request.questions.length === 1}
-                  onEdit={(edit) => editQuestion(pending, edit)}
-                />
-              ))}
+              {/* One tab per question (RFC 0062 follow-up), always — including
+                  a lone one, so every ask reads the same and the agent's
+                  header always has somewhere to sit. The protocol has no
+                  notion of tabs; this is presentation, and the CLI reads the
+                  same flat payload the same way. */}
+              {active ? (
+                <>
+                  <Tabs
+                    tabs={questionTabs(request.questions, sending).map((t) => ({
+                      id: t.id,
+                      label: t.label,
+                      icon: (
+                        // Named, not `aria-hidden`. Showing one question at a
+                        // time is what makes this marker necessary in the
+                        // first place; hiding it from assistive tech would
+                        // take the affordance away from exactly the users who
+                        // cannot glance at the strip to recover it.
+                        <span
+                          className="acp-chat__question-tab-state"
+                          data-answered={t.answered || undefined}
+                          role="img"
+                          aria-label={t.answered ? "Answered" : "Not answered"}
+                        >
+                          {t.answered ? (
+                            <CheckCircle size="1em" weight="fill" />
+                          ) : (
+                            <Circle size="1em" />
+                          )}
+                        </span>
+                      ),
+                    }))}
+                    active={active.id}
+                    onSelect={(id) => selectQuestionTab(pending, id)}
+                  />
+                  <TabPanel>
+                    <QuestionField
+                      question={active}
+                      form={form}
+                      single={request.questions.length === 1}
+                      customChosen={isCustomChosen(
+                        pending.customChosen,
+                        active.id,
+                      )}
+                      onEdit={(edit) => editQuestion(pending, edit)}
+                      onToggleCustom={(next) =>
+                        toggleQuestionCustom(pending, active.id, next)
+                      }
+                    />
+                  </TabPanel>
+                </>
+              ) : null}
               <div className="acp-chat__question-actions">
                 <Tooltip
                   content={

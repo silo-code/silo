@@ -974,7 +974,7 @@
 .acp-chat__question {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   padding: 10px;
   border-radius: var(--silo-radius-md);
   background: var(--silo-color-bg);
@@ -989,6 +989,39 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* The kit's radio cards are spaced for a settings modal, where a handful of
+   choices own the page. Inside a question card they stack inside a narrow
+   panel under a tab strip, and that same spacing pushed a four-option question
+   past the height of the panel. Scoped here rather than changed at the source:
+   the airier default is right where it came from. */
+.acp-chat__question .silo-radio-card {
+  padding: 7px 10px;
+}
+
+.acp-chat__question .silo-radio-card + .silo-radio-card {
+  margin-top: 2px;
+}
+
+/* Same reasoning for the panel the tabs switch — a modal's breathing room is
+   a side panel's wasted column. */
+.acp-chat__question .silo-tab-panel {
+  padding: 10px;
+}
+
+/* The per-tab answered marker. Carries the whole cost of showing one question
+   at a time: with the others hidden, this is the only way to see that one of
+   them is still waiting. Muted until answered, so the strip reads as progress
+   rather than as decoration. */
+.acp-chat__question-tab-state {
+  display: inline-flex;
+  align-items: center;
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__question-tab-state[data-answered] {
+  color: var(--silo-color-accent);
 }
 
 .acp-chat__question-prompt {
@@ -1033,8 +1066,25 @@
   color: var(--silo-color-text-lo);
 }
 
+/* One question and what the user said to it, stacked. The pairing is the
+   point: an answer alone ("develop") is unreadable a screen later, and a
+   question alone does not say what the agent went away and acted on. */
 .acp-chat__question-asked {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 4px;
   overflow-wrap: anywhere;
+}
+
+.acp-chat__question-asked-prompt {
+  color: var(--silo-color-text-lo);
+}
+
+/* The user's own words, at full contrast — the question is context, this is
+   the line a reader is scanning back for. */
+.acp-chat__question-said {
+  color: var(--silo-color-text-hi);
 }
 
 .acp-chat__question-outcome {

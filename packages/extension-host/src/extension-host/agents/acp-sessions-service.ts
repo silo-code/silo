@@ -61,7 +61,7 @@ import {
   type AcpPermissionRequest,
   type AcpSessionUpdate,
 } from "./acp-jsonrpc";
-import { toElicitationContent } from "./elicitation-schema";
+import { toAnswerSummary, toElicitationContent } from "./elicitation-schema";
 import {
   getChatAgentEntry,
   patchChatAgent,
@@ -1105,6 +1105,7 @@ export function createAgentSessionsService(
           const finish = (
             resolution: AgentElicitationResolution,
             outcome: AcpElicitationOutcome,
+            summary?: Record<string, string>,
           ): boolean => {
             if (settled) return false;
             settled = true;
@@ -1112,16 +1113,25 @@ export function createAgentSessionsService(
             noteChatSessionBlockedOnQuestion(infoId, false);
             publishSynthetic({
               kind: ELICITATION_RESOLUTION_KIND,
-              elicitation: { id, resolution },
+              elicitation: {
+                id,
+                resolution,
+                // Only when there is something to show: a skipped or
+                // cancelled question has no answer, and an empty map would
+                // render as an answer section with nothing in it.
+                ...(summary && Object.keys(summary).length > 0
+                  ? { answers: summary }
+                  : {}),
+              },
               raw: { synthesized: true },
             });
             respond(outcome);
             return true;
           };
           let answered = false;
-          const sdkReq = toSdkElicitation(request, id, (outcome) => {
+          const sdkReq = toSdkElicitation(request, id, (outcome, summary) => {
             answered = true;
-            if (!finish(resolutionOf(outcome), outcome)) return;
+            if (!finish(resolutionOf(outcome), outcome, summary)) return;
             clearBlockedOnUser();
           });
           // Journal the ask **before** dispatching it, so a listener that
@@ -2054,17 +2064,23 @@ function toElicitationRecord(
 function toSdkElicitation(
   req: AcpElicitationRequest,
   id: string,
-  respond: (outcome: AcpElicitationOutcome) => void,
+  respond: (
+    outcome: AcpElicitationOutcome,
+    summary?: Record<string, string>,
+  ) => void,
 ): AgentElicitationRequest {
   // First call wins, across all three methods. The protocol layer dedupes the
   // JSON-RPC reply on its own, but the guard belongs here too: this is the
   // surface that documents the three as idempotent and mutually exclusive, and
   // without it a second call would re-run the turn-adoption bookkeeping.
   let answered = false;
-  const once = (outcome: AcpElicitationOutcome) => {
+  const once = (
+    outcome: AcpElicitationOutcome,
+    summary?: Record<string, string>,
+  ) => {
     if (answered) return;
     answered = true;
-    respond(outcome);
+    respond(outcome, summary);
   };
   return {
     id,
@@ -2074,10 +2090,16 @@ function toSdkElicitation(
     ...(req.toolCallId !== undefined ? { toolCallId: req.toolCallId } : {}),
     raw: req.raw as Readonly<Record<string, unknown>>,
     respond(answers) {
-      once({
-        action: "accept",
-        content: toElicitationContent(req.questions, { ...answers }),
-      });
+      const collected = { ...answers };
+      once(
+        {
+          action: "accept",
+          content: toElicitationContent(req.questions, collected),
+        },
+        // The same answers in the user's own words, for the transcript row —
+        // see `AgentElicitationRecord.answers`.
+        toAnswerSummary(req.questions, collected),
+      );
     },
     decline() {
       once({ action: "decline" });
