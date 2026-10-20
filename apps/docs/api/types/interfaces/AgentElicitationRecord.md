@@ -104,3 +104,25 @@ Defined in: [packages/sdk/src/agents-service.ts:1484](https://github.com/silo-co
 
 How it ended. `undefined` on the opening `"elicitation"` update — the
  question was still open at that point.
+
+***
+
+### answers?
+
+```ts
+readonly optional answers?: Readonly<Record<string, string>>;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1496](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1496)
+
+**`Beta`**
+
+What the user answered, keyed by [AgentElicitationQuestion.id](AgentElicitationQuestion.md#id) and
+written as **the text they saw** — the option's label, a comma-joined list
+for a multi-select, `"Yes"`/`"No"`, or whatever they typed.
+
+Deliberately not the payload the agent received: that one speaks in option
+`value`s and routes a typed answer to its own field, so replaying it to the
+user would show them identifiers they never picked. Present only on an
+`"answered"` resolution, and only for the questions that got an answer —
+a skipped question contributes no key.

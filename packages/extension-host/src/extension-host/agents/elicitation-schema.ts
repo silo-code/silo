@@ -330,6 +330,61 @@ function coerceList(
 }
 
 /**
+ * The answers as **text to show the user afterwards**, keyed by question id.
+ *
+ * Deliberately not the wire payload {@link toElicitationContent} builds: that
+ * one speaks the agent's language (option `value`s, coerced numbers, a custom
+ * answer routed to its own field), and reading it back would show the user
+ * identifiers they never saw. This reads the *labels* they picked.
+ *
+ * A question with no answer contributes no key, so "answered nothing here"
+ * stays distinguishable from "answered with an empty string".
+ */
+export function toAnswerSummary(
+  questions: readonly ElicitationQuestion[],
+  answers: ElicitationAnswers,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const question of questions) {
+    const answer = answers[question.id];
+    if (!answer) continue;
+
+    // Same precedence the agent itself applies: a typed answer stands in for
+    // the selection rather than alongside it — and the same `question.custom`
+    // guard as `toElicitationContent`. Without it, a typed answer to a
+    // question with no companion field would be *shown* as the recorded
+    // answer while the agent actually received the selection. The panel never
+    // produces that state, but `respond()` is public surface and a
+    // third-party chat UI can.
+    const custom =
+      typeof answer.custom === "string" ? answer.custom.trim() : "";
+    if (custom !== "" && question.custom) {
+      out[question.id] = custom;
+      continue;
+    }
+
+    const { value } = answer;
+    if (value === undefined) continue;
+
+    const labelOf = (v: string): string =>
+      question.options?.find((o) => o.value === v)?.label ?? v;
+
+    if (Array.isArray(value)) {
+      const labels = value.map((v) => labelOf(String(v)));
+      if (labels.length > 0) out[question.id] = labels.join(", ");
+      continue;
+    }
+    if (typeof value === "boolean") {
+      out[question.id] = value ? "Yes" : "No";
+      continue;
+    }
+    const text = String(value).trim();
+    if (text !== "") out[question.id] = labelOf(text);
+  }
+  return out;
+}
+
+/**
  * Serialize collected answers into the protocol's `content` object, coerced to
  * each question's declared type.
  *

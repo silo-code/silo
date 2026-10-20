@@ -263,6 +263,12 @@
 
 .silo-tab {
   appearance: none;
+  /* `TabItem.icon` has always been part of the kit's surface, but a plain
+     inline button sat its icon on the text baseline with nothing between the
+     two. Flex is what makes the slot actually usable. */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: none;
   border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;

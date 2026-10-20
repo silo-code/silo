@@ -761,6 +761,9 @@ html[data-silo-demo-theme="white"] .silo-demo {
 }
 .silo-demo .silo-tab {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: none;
   border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;

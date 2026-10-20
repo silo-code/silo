@@ -176,6 +176,30 @@ describe("applyUpdate — questions (RFC 0062 follow-up)", () => {
     });
   });
 
+  it("keeps what the user answered on the row, so the transcript says what was decided", () => {
+    const t = fold([
+      asked("q1"),
+      {
+        kind: "elicitation_resolution",
+        elicitation: {
+          id: "q1",
+          resolution: "answered",
+          answers: { branch: "develop" },
+        },
+        raw: {},
+      },
+    ]);
+    expect(t.entries[0]).toMatchObject({
+      resolution: "answered",
+      answers: { branch: "develop" },
+    });
+  });
+
+  it("leaves answers off a question nobody answered", () => {
+    const t = fold([asked("q1"), settled("q1", "skipped")]);
+    expect(t.entries[0]).not.toHaveProperty("answers");
+  });
+
   it("records an interrupted question — the reload case the row exists for", () => {
     const t = fold([asked("q1"), settled("q1", "interrupted")]);
     expect(t.entries[0]).toMatchObject({ resolution: "interrupted" });
