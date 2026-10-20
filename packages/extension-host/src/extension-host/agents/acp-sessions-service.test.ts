@@ -139,7 +139,7 @@ import {
   resetChatAgentRegistry,
 } from "./chat-agent-registry";
 import { createAgentSessionsService } from "./acp-sessions-service";
-import { TURN_QUIESCENCE_MS } from "./chat-turn-signals";
+import { TURN_QUIESCENCE_MS, TURN_BACKSTOP_MS } from "./chat-turn-signals";
 import {
   _resetDormantChatSessionsForTests,
   startChatSessionStatusPersistence,
@@ -1200,6 +1200,162 @@ describe("agent-initiated turns — activity the host never asked for", () => {
 
       await vi.advanceTimersByTimeAsync(60_000);
       expect(chatAgentInfos()[0].activity).not.toBe("working");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // The frame that wedged a production tab: the last line of prod journal
+  // 2c4ce3fd (`claude-agent-acp@0.75.1`, 2026-10-20). An agent-initiated turn
+  // ends with the per-turn `cost` and no `_meta` whatsoever.
+  const unmarkedEnd = () => ({
+    sessionUpdate: "usage_update",
+    used: 190027,
+    size: 1000000,
+    cost: { amount: 4.631994800000001, currency: "USD" },
+  });
+
+  it("ends an agent-initiated turn whose end frame carries a cost but no provenance", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      // The prompt turn's marker teaches the host this agent marks its ends.
+      captured.onUpdate(endMarker("human") as never);
+
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Let me know if you want me to run" },
+      } as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      captured.onUpdate(unmarkedEnd() as never);
+      // No clock advanced: the `cost` is the boundary, origin or no origin.
+      expect(chatAgentInfos()[0]).toMatchObject({
+        activity: "idle",
+        needsAttention: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("backstops a turn that never gets an end frame at all, even once the agent has marked one", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      captured.onUpdate(endMarker("human") as never);
+
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "a background task notified me" },
+      } as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      // Well past the quiescence window an unmarked agent would get. A marking
+      // agent is trusted for far longer — it just isn't trusted forever.
+      await vi.advanceTimersByTimeAsync(TURN_QUIESCENCE_MS + 1_000);
+      expect(chatAgentInfos()[0], "still trusted").toMatchObject({
+        activity: "working",
+      });
+
+      await vi.advanceTimersByTimeAsync(TURN_BACKSTOP_MS);
+      expect(chatAgentInfos()[0], "backstop fired").toMatchObject({
+        activity: "idle",
+        needsAttention: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("holds the backstop open for as long as a tool call runs", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      captured.onUpdate(endMarker("human") as never);
+
+      captured.onUpdate({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        status: "pending",
+        title: "npm run test",
+      } as never);
+      // The backstop re-arms rather than firing while a call is outstanding,
+      // so a long one is never cut short however many windows it spans.
+      await vi.advanceTimersByTimeAsync(TURN_BACKSTOP_MS * 3);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      captured.onUpdate({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        status: "completed",
+      } as never);
+      await vi.advanceTimersByTimeAsync(TURN_BACKSTOP_MS + 1_000);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reopens the turn when the agent speaks again after a backstop fired", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      captured.onUpdate(endMarker("human") as never);
+
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "thinking" },
+      } as never);
+      await vi.advanceTimersByTimeAsync(TURN_BACKSTOP_MS + 1_000);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+
+      // Why firing early is the cheap mistake and never firing is the
+      // expensive one: a premature finish costs one badge and heals itself.
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "...done" },
+      } as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      captured.onUpdate(unmarkedEnd() as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never lets the backstop end a turn the host prompted", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      captured.onUpdate(endMarker("human") as never);
+
+      let resolvePrompt!: (v: { stopReason: string }) => void;
+      fakeClient.prompt.mockReturnValue(
+        new Promise((r) => {
+          resolvePrompt = r;
+        }),
+      );
+      const p = handle.prompt([{ type: "text", text: "take your time" }]);
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "working on it" },
+      } as never);
+
+      // A `session/prompt` turn is owned by its own promise start to finish —
+      // no clock of any width gets a say in it.
+      await vi.advanceTimersByTimeAsync(TURN_BACKSTOP_MS * 5);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      resolvePrompt({ stopReason: "end_turn" });
+      await p;
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
     } finally {
       vi.useRealTimers();
     }

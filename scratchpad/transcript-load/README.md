@@ -19,6 +19,52 @@ RFC 0050.
   Deterministic per `--seed`, so a before/after comparison measures the change
   and not a different transcript.
 
+## Reproducing the wedged "Working" tab
+
+The fake agent also reproduces the turn-end bug from prod journal `2c4ce3fd`
+(`claude-agent-acp@0.75.1`, 2026-10-20), where a Chat tab sat in **Working** for
+33 minutes after its agent had plainly finished. No journal planting and no
+restart — it is all live frames.
+
+Add a Chat agent profile under **Settings → Agents**, Agent = _Custom_:
+
+| field     | value                                                                  |
+| --------- | ---------------------------------------------------------------------- |
+| Command   | `node`                                                                 |
+| Arguments | `<abs path>/fake-acp-agent.mjs --unprompted 5 --marker --end unmarked` |
+
+**Arguments is space-separated** (`parseArgs`, `chat-launch-model.ts`) and
+nothing else in it is interpreted — paste it as one line. Commas between the
+arguments become part of the arguments, and the first casualty is the script
+path itself: `MODULE_NOT_FOUND` with an empty `requireStack`, because node is
+looking for a file whose name ends in a comma.
+
+Both flags matter, and `--marker` is the one that is easy to skip:
+
+- `--marker` stamps a proper Turn End Marker on every `session/prompt` turn,
+  which is what teaches the host that this agent marks its own turn ends.
+  Without it the session never gets into the state the bug needs.
+- `--end unmarked` then ends the **agent-initiated** turn with the frame the
+  real adapter sends: a `usage_update` carrying the per-turn `cost` and no
+  `_meta` at all.
+
+Send the panel any message and watch the Agents navigator row:
+
+|                  | before the fix    | after                          |
+| ---------------- | ----------------- | ------------------------------ |
+| `--end marked`   | Finished          | Finished                       |
+| `--end unmarked` | **stuck Working** | Finished, ~10s in              |
+| `--end silent`   | **stuck Working** | Finished, at the 120s backstop |
+
+Sequence either way: the prompt turn finishes, 5s later an agent-initiated turn
+opens (`Working`), it runs a tool call for ~8s, then ends. `--end silent` sends
+no end frame at all, so only the fallback clock can close it — allow the full
+`TURN_BACKSTOP_MS` before calling it stuck.
+
+Watch **Output → Agents** alongside it: `agent-initiated turn ended for <id>`
+names which signal closed the turn (`origin: task-notification`,
+`origin: unmarked`, or `backstop: no marker`).
+
 ## The one non-obvious constraint
 
 **Planting the journal requires the app to be stopped.** Two reasons:
