@@ -300,47 +300,52 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
       onDoubleClick={onTabDoubleClick}
       onContextMenu={onTabContextMenu}
     >
-      <Tooltip content={displayTitle} disabled={!isTruncated}>
-        <span
-          ref={contentRef}
-          className={`dv-default-tab-content${isPreview ? " preview-title" : ""}${isDeleted ? " deleted-title" : ""}`}
-        >
-          {tabIcons.map((icon) => (
-            <span key={icon.id} className="dvi-tab-icon" aria-hidden>
-              {icon.icon}
-            </span>
-          ))}
-          {isDirty && <span className="dvi-dirty-indicator">●</span>}
-          {displayTitle}
-        </span>
-      </Tooltip>
-      {tabIndicators.map((indicator) => (
-        <Tooltip
-          key={indicator.id}
-          content={indicator.tooltip ?? ""}
-          disabled={!indicator.tooltip}
-        >
+      {/* Title + adornments are one row so the hover rule in CenterDock.css can
+          cap the whole group's width in one place and make room for the close
+          button — see "Let an inactive tab's title use the whole tab." */}
+      <div className="dvi-tab-row">
+        <Tooltip content={displayTitle} disabled={!isTruncated}>
           <span
-            className="dvi-tab-decoration"
-            data-color={indicator.color ?? "muted"}
-            data-chip={indicator.chip ? "" : undefined}
-            aria-label={indicator.tooltip}
+            ref={contentRef}
+            className={`dv-default-tab-content${isPreview ? " preview-title" : ""}${isDeleted ? " deleted-title" : ""}`}
           >
-            <TabIndicatorGlyph indicator={indicator} />
+            {tabIcons.map((icon) => (
+              <span key={icon.id} className="dvi-tab-icon" aria-hidden>
+                {icon.icon}
+              </span>
+            ))}
+            {isDirty && <span className="dvi-dirty-indicator">●</span>}
+            {displayTitle}
           </span>
         </Tooltip>
-      ))}
-      {tabActivities.map((act) => (
-        <Tooltip
-          key={act.id}
-          content={act.tooltip ?? ""}
-          disabled={!act.tooltip}
-        >
-          <span className="dvi-tab-activity" aria-label={act.tooltip}>
-            <ActivityGlyph activity={act.activity} size="sm" />
-          </span>
-        </Tooltip>
-      ))}
+        {tabIndicators.map((indicator) => (
+          <Tooltip
+            key={indicator.id}
+            content={indicator.tooltip ?? ""}
+            disabled={!indicator.tooltip}
+          >
+            <span
+              className="dvi-tab-decoration"
+              data-color={indicator.color ?? "muted"}
+              data-chip={indicator.chip ? "" : undefined}
+              aria-label={indicator.tooltip}
+            >
+              <TabIndicatorGlyph indicator={indicator} />
+            </span>
+          </Tooltip>
+        ))}
+        {tabActivities.map((act) => (
+          <Tooltip
+            key={act.id}
+            content={act.tooltip ?? ""}
+            disabled={!act.tooltip}
+          >
+            <span className="dvi-tab-activity" aria-label={act.tooltip}>
+              <ActivityGlyph activity={act.activity} size="sm" />
+            </span>
+          </Tooltip>
+        ))}
+      </div>
       <div
         className="dv-default-tab-action"
         onPointerDown={onBtnPointerDown}
