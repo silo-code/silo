@@ -26,7 +26,14 @@ tests. Run them yourself anytime (from the repo root):
 | Format                            | `pnpm format` (check with `pnpm format:check`)                 |
 | Typecheck                         | `pnpm --filter silo exec tsc --noEmit`                         |
 | Frontend tests                    | `pnpm test`                                                    |
+| Frontend tests (changed packages) | `pnpm test:changed`                                            |
 | Rust tests                        | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` |
+
+The hook uses `test:changed` — the packages your diff touches plus everything
+that depends on them — because the full suite takes several minutes and is
+dominated by two packages whatever you changed. Edit something outside a
+package (root config, the lockfile, `docs/`) and it runs the whole suite
+instead, since there's no package scope to derive. CI always runs everything.
 
 CI runs all of these on every PR; they must pass before merge.
 

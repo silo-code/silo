@@ -44,11 +44,29 @@ echo "→ Formatting staged files…"
 npx --no-install lint-staged || fail "formatting failed (see errors above)"
 
 echo "→ Running unit tests…"
-# Unit projects across all packages, deterministic and app-free (turbo caches
-# unchanged packages). The integration layer (*.it.test.ts) drives a live dev
-# app over the RPC, so it's unsuitable for a commit gate — run it explicitly via
-# `pnpm --filter silo test:it`. See docs/AUTOMATION.md.
-$PNPM --silent test 2>/dev/null || fail "tests failed (see errors above)"
+# Unit projects, deterministic and app-free. The integration layer
+# (*.it.test.ts) drives a live dev app over the RPC, so it's unsuitable for a
+# commit gate — run it explicitly via `pnpm --filter silo test:it`. See
+# docs/AUTOMATION.md.
+#
+# Scoped to the packages this commit actually touches plus everything that
+# depends on them (`test:changed` → `turbo --filter=...[HEAD]`; turbo diffs the
+# working tree, so staged changes count). The full suite is ~8 minutes because
+# the two heaviest packages dominate it — extension-host spins up a jsdom per
+# test file, and extensions-silo's git tests shell out to real `git` against
+# temp repos — and running both when only one is in the diff is both slow and
+# flaky: the git tests hit their 20s timeouts when starved of CPU by
+# extension-host's workers. A touch to extension-host now runs three packages
+# instead of eleven.
+#
+# A change outside any package (root config, lockfile, the shared docs/ tree)
+# can't be mapped to a scope — turbo would select nothing — so that falls back
+# to the whole suite.
+if git diff --cached --name-only | grep -qvE '^(packages|apps)/'; then
+  $PNPM --silent test 2>/dev/null || fail "tests failed (see errors above)"
+else
+  $PNPM --silent test:changed 2>/dev/null || fail "tests failed (see errors above)"
+fi
 
 # Docs link check — only when docs or SDK source files are staged. Catches dead
 # links (like /api/types/type-aliases/ → /interfaces/) before they reach CI.
