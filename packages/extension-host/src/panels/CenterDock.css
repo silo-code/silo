@@ -247,6 +247,16 @@
  * keeps the ellipsis. Scope to the *title* host only: decoration icons are also
  * wrapped in Tooltip, and must not flex-shrink or they collapse when tabs
  * compress. */
+/* Title + adornments live in one row (`DockTab`), so that whole group — not
+ * the title alone — is what flexes against the close button, and the hover
+ * rule at the bottom of this file can cap it in a single place. */
+.editor-dock .dv-tabs-container .dv-tab .dvi-tab-row,
+.dv-popover-anchor .dv-tabs-overflow-container .dvi-tab-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+}
 .editor-dock
   .dv-tabs-container
   .dv-tab
@@ -778,9 +788,8 @@
  * box, so ~24px at the right of every inactive tab is reserved for a button
  * that isn't painted, and the title's ellipsis stops short of the tab edge
  * for no visible reason. Taking the button out of flow there gives the label
- * that space back; on hover the button comes back over the label's tail
- * rather than pushing it, so nothing reflows and the ellipsis doesn't move.
- * The label fades out underneath it (mask) instead of colliding with it.
+ * that space back, and keeps the tab's own width independent of whether the
+ * pointer is over it — the button is painted on hover, never laid out.
  *
  * The **active** tab keeps the button in flow: it's permanently visible
  * there, so an overlay would permanently sit on the title.
@@ -795,13 +804,32 @@
   inset-block: 0;
   margin: auto 0;
 }
+
+/* What the hovered button lands on depends on the tab.
+ *
+ * A plain tab has nothing there but the tail of its own title, so the title
+ * fades out underneath it (mask) and nothing moves — the ellipsis stays put.
+ *
+ * A tab carrying a decoration or activity glyph can't do that: the overlay
+ * lands exactly where the glyph sits, so the X would paint on top of a dot.
+ * Those tabs give the button real room on hover instead, by capping the
+ * title-and-adornments row — the glyph slides left and the title picks up a
+ * shorter ellipsis, the same shift the tab makes when it becomes active. The
+ * cap is a `max-width`, and a percentage one at that, so it can only ever
+ * take width away from the row; the tab itself can't grow on hover. */
 .editor-dock
   .dv-tab.dv-inactive-tab
-  .dv-default-tab:hover
+  .dv-default-tab:not(:has(.dvi-tab-decoration, .dvi-tab-activity)):hover
   .dv-default-tab-content {
   mask-image: linear-gradient(
     to right,
     #000 calc(100% - 26px),
     transparent calc(100% - 6px)
   );
+}
+.editor-dock
+  .dv-tab.dv-inactive-tab
+  .dv-default-tab:has(.dvi-tab-decoration, .dvi-tab-activity):hover
+  .dvi-tab-row {
+  max-width: calc(100% - 22px);
 }
