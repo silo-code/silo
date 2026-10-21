@@ -43,7 +43,12 @@ const git = createGitService(realExec);
 
 // Real-git tests spawn dozens of processes; under a loaded machine (the full
 // suite runs files in parallel) single tests can pass vitest's 5s default.
-const SUITE_TIMEOUT_MS = 20_000;
+// Generous on purpose: the whole file runs in ~70s when it has the machine to
+// itself (~1.3s a test), so this cap only ever bites when a spawned git is
+// genuinely starved — which it was at 20s, timing out mid-fetch while
+// extension-host's jsdom workers held the CPU and blocking a commit that had
+// nothing to do with git.
+const SUITE_TIMEOUT_MS = 60_000;
 
 describe(
   "GitService (against a temp repo)",

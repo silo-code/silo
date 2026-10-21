@@ -13,6 +13,7 @@
     "lint": "eslint . && pnpm run lint:css",
     "lint:css": "stylelint \"packages/extensions-*/src/**/*.css\"",
     "test": "turbo run test",
+    "test:changed": "turbo run test --filter=...[HEAD]",
     "docs:api": "pnpm --filter @silo-code/docs docs:api",
     "docs:dev": "pnpm --filter @silo-code/docs dev",
     "docs:build": "pnpm --filter @silo-code/docs build",
