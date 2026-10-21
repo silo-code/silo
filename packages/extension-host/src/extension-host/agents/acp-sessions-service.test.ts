@@ -2042,6 +2042,57 @@ describe("connect({ resume }) — Chat session resurrection", () => {
       expect(chatAgentInfos()[0].title).toBe("Claude (chat)");
     });
 
+    // Dave's report (2026-10-21): the panel resets its own title the instant
+    // Clear fires, but it came back once the reconnect finished. Root cause —
+    // this backstop (meant for an ordinary resume whose caller-side title
+    // went missing) was firing for Clear too, pulling the discarded
+    // conversation's title back out of `chatSessionState` even though the
+    // panel now deliberately passes no `options.title` of its own.
+    it("a Clear reset ignores the remembered title along with options.title", async () => {
+      store.chatSessionState = {
+        "chat:old-id": {
+          workspaceId: "active",
+          sessionId: "old-id",
+          title: "Refactor the dock registry",
+          canResume: true,
+          lastLiveAt: "2026-09-09T00:00:00.000Z",
+        },
+      };
+
+      const handle = await service.connect("claude-chat", {
+        resume: {
+          sessionId: "old-id",
+          startFresh: true,
+          transcript: "discard",
+        },
+      });
+
+      expect(handle.sessionId).toBe("s1");
+      expect(chatAgentInfos()[0].title).toBe("Claude (chat)");
+    });
+
+    // Unlike Clear, "Continue in a new session" carries the old journal into
+    // the new session's file — it is the same conversation under a new id —
+    // so the remembered title comes along too.
+    it("Continue in a new session still falls back to the remembered title", async () => {
+      store.chatSessionState = {
+        "chat:old-id": {
+          workspaceId: "active",
+          sessionId: "old-id",
+          title: "Refactor the dock registry",
+          canResume: true,
+          lastLiveAt: "2026-09-09T00:00:00.000Z",
+        },
+      };
+
+      const handle = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id", startFresh: true },
+      });
+
+      expect(handle.sessionId).toBe("s1");
+      expect(chatAgentInfos()[0].title).toBe("Refactor the dock registry");
+    });
+
     it("is removed, not left dangling, when session/load adopts a different id", async () => {
       fakeClient.initialize.mockResolvedValue({
         agentInfo: { title: "Claude Code" },
