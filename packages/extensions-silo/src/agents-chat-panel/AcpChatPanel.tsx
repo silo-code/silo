@@ -294,6 +294,7 @@ import {
   panelStateAfterConnect,
   resolveChatCwd,
   restoreOptionFor,
+  seedTitleFor,
   shouldSkipInstantPaint,
   type RestartIntent,
 } from "./session-restore";
@@ -321,8 +322,12 @@ import {
 } from "./transcript-mount";
 
 export interface AcpChatPanelParams {
-  /** Seed tab label, shown until the agent declares its own name. */
-  title?: string;
+  /**
+   * Seed tab label, shown until the agent declares its own name. `null` once
+   * Clear (RFC 0048) has discarded the old session's agent-given title along
+   * with its conversation — see {@link seedTitleFor}.
+   */
+  title?: string | null;
   /**
    * Which **Chat** Agent Profile this tab is bound to, persisted so a reopened
    * panel comes back on the same agent. A profile the user has since deleted
@@ -1952,18 +1957,24 @@ export function AcpChatPanel({
     // Unlike the transcript, the Context reading survives a reconnect that
     // resumes the same conversation — the context is still loaded, and nothing
     // will re-report it until the next turn ends. A genuinely fresh start
-    // (Clear / "Continue in a new session") drops it.
+    // (Clear / "Continue in a new session") drops it — but the agent's
+    // volunteered title (`seedTitle` below, see `seedTitleFor`) is not the
+    // same rule: Clear alone drops it, since it alone discards the old
+    // conversation's journal outright. "Continue in a new session" carries
+    // that journal forward, so its title comes along too.
     if (carriesUsageForward(restart?.intent ?? null)) {
       setUsage(usageRef.current);
     } else {
       setUsage(undefined);
-      // Clear the persisted copy too, not just the live one. The write-back
+      // Clear the persisted copies too, not just the live ones. The write-back
       // effect skips an unset reading (so a reconnect can't blank a good
       // value), which means the emptying paths are the ones that have to say
       // so — otherwise closing and reopening the tab before the next turn
-      // would seed Context from the context Clear just discarded.
-      api.updateParameters({ usage: null });
+      // would seed Context (or the title) from the conversation Clear just
+      // discarded.
+      api.updateParameters({ usage: null, title: null });
     }
+    const seedTitle = seedTitleFor(params.title, restart?.intent ?? null);
     setPermissions([]);
     setAgentName(undefined);
     setAgentId(undefined);
@@ -2007,8 +2018,10 @@ export function AcpChatPanel({
         // seconds, and without this the tab, workspace row, and Agents
         // navigator all sit on the plain profile label until it resolves,
         // even though the agent's own title from before the app closed was
-        // already known.
-        title: params.title,
+        // already known. `undefined` for a genuinely fresh start (see
+        // `seedTitle` above) — Clear has nothing to paint ahead of, and
+        // painting the old title would un-clear the tab it just reset.
+        title: seedTitle,
         // `ctx.agents.reveal(id)` — from the Agents navigator, a command, a
         // notification — activates the workspace and then calls this, so a
         // kind-agnostic caller focuses this transcript without knowing it is

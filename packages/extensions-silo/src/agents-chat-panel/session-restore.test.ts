@@ -9,6 +9,7 @@ import {
   sessionResetOption,
   shouldSkipInstantPaint,
   carriesUsageForward,
+  seedTitleFor,
 } from "./session-restore";
 
 describe("resumeOptionFor", () => {
@@ -145,5 +146,36 @@ describe("carriesUsageForward", () => {
   it("drops the reading when the context genuinely starts empty", () => {
     expect(carriesUsageForward("reset")).toBe(false);
     expect(carriesUsageForward("continue-fresh")).toBe(false);
+  });
+});
+
+describe("seedTitleFor", () => {
+  // An ordinary reconnect or resume picks the same (or another
+  // already-named) conversation back up, so the old title is still the best
+  // answer until the agent volunteers a new one.
+  it("carries the old title forward for a reconnect or resume", () => {
+    expect(seedTitleFor("My Session", null)).toBe("My Session");
+    expect(seedTitleFor("My Session", "resume-other")).toBe("My Session");
+  });
+
+  // "Continue in a new session" carries the old journal into the new
+  // session's file — it is the same conversation under a new id, so its
+  // title rides along too, unlike the Context reading (which genuinely
+  // starts at zero for the new session's process).
+  it("carries the old title forward for Continue in a new session", () => {
+    expect(seedTitleFor("My Session", "continue-fresh")).toBe("My Session");
+  });
+
+  // Clear discards the old conversation's journal outright, so it has no
+  // more claim to that conversation's title than a brand-new session would —
+  // carrying it forward would mislabel the tab until (if ever) the new
+  // session volunteers its own title.
+  it("drops the title for a Clear reset", () => {
+    expect(seedTitleFor("My Session", "reset")).toBeUndefined();
+  });
+
+  it("treats a persisted null the same as absent", () => {
+    expect(seedTitleFor(null, null)).toBeUndefined();
+    expect(seedTitleFor(undefined, null)).toBeUndefined();
   });
 });

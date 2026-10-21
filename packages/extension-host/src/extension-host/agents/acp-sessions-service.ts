@@ -557,9 +557,24 @@ export function createAgentSessionsService(
       const priorStatus = resumeTarget
         ? store.chatSessionState[`chat:${resumeTarget.sessionId}`]
         : undefined;
-      const restoredTitle = resumeTarget
-        ? (options?.title ?? priorStatus?.title)
-        : undefined;
+      // **Session reset** (RFC 0048) — "Clear" — is the one restore that is
+      // not a continuation: it discards the old conversation's journal
+      // outright, so it has no more claim to that conversation's title than a
+      // brand-new session would. Without this exclusion, this backstop undid
+      // the panel's own title reset the instant this registration landed —
+      // `options.title` comes back `undefined` for a Clear (the panel has
+      // nothing to paint ahead of either), but `priorStatus?.title` is still
+      // sitting in `chatSessionState` under the id Clear is throwing away,
+      // and would resurrect the old title right as the new session connects.
+      // "Continue in a new session" (`startFresh` without `transcript:
+      // "discard"`) is the opposite: the journal — and the conversation it
+      // belongs to — carries forward, so its title rides along too.
+      const isClearReset =
+        resumeTarget?.startFresh && resumeTarget.transcript === "discard";
+      const restoredTitle =
+        resumeTarget && !isClearReset
+          ? (options?.title ?? priorStatus?.title)
+          : undefined;
       // When this conversation last stopped, carried across the reconnect.
       // Reconnecting to a session does not change when its last turn ended,
       // so both registrations below have to hand it back — dropping it is

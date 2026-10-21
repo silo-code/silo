@@ -114,6 +114,33 @@ export function carriesUsageForward(intent: RestartIntent | null): boolean {
 }
 
 /**
+ * The seed title to paint immediately while this reconnect's handshake is in
+ * flight ({@link AcpChatPanelParams.title}) — the old session's agent-given
+ * title, for anything that keeps the same conversation: an ordinary
+ * reconnect/resume, or `continue-fresh` ("Continue in a new session"), which
+ * carries the old journal into the new session and so carries its title too.
+ *
+ * `undefined` only for `reset` (Clear, RFC 0048): the one restart that
+ * discards the old conversation's journal outright, so it has no more claim
+ * to that conversation's title than a brand-new session would. The host's
+ * `chatSessionState` backstop (`acp-sessions-service.ts`'s `restoredTitle`)
+ * makes the matching exclusion for the same reason, so the two sides agree
+ * on when a title has no history to fall back on.
+ *
+ * Deliberately **not** the same split as {@link carriesUsageForward}: the
+ * Context reading resets for `continue-fresh` too, but that is a fact about
+ * the new session process's own token accounting (it genuinely starts at
+ * zero), not about whether it is "the same conversation" — which, for
+ * `continue-fresh`, it is.
+ */
+export function seedTitleFor(
+  title: string | null | undefined,
+  intent: RestartIntent | null,
+): string | undefined {
+  return intent === "reset" ? undefined : (title ?? undefined);
+}
+
+/**
  * The folder this panel's session runs in: the one chosen when it was started
  * (RFC 0046), falling back to the workspace's primary folder.
  *
