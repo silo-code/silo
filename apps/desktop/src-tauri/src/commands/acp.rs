@@ -1086,6 +1086,28 @@ mod tests {
         );
     }
 
+    /// `close_abandoned` reaps **every** registered connection, which is only
+    /// the right thing to do while Silo has exactly one window: a reload there
+    /// abandons every agent in the app. The day a second window exists, one
+    /// window reloading would reap the other's agents, and this fix has to
+    /// grow a per-window owner before that ships. Fail loudly here rather than
+    /// silently killing a live session, because nothing else would catch it.
+    #[test]
+    fn close_abandoned_assumes_a_single_window() {
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../../tauri.conf.json"))
+                .expect("tauri.conf.json is not valid JSON");
+        let windows = conf["app"]["windows"]
+            .as_array()
+            .expect("tauri.conf.json declares no app.windows array");
+        assert_eq!(
+            windows.len(),
+            1,
+            "Silo grew a second window — scope `close_abandoned` to the \
+             reloading webview's own connections before this ships"
+        );
+    }
+
     /// The invariant everything else here rests on: the child really is its
     /// own process-group leader, so `pid == pgid` and a `killpg` aimed at it
     /// can only ever reach our own tree. If `process_group(0)` ever stopped
