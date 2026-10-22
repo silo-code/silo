@@ -7,6 +7,7 @@ import {
   restoredPanelTitle,
   sameParams,
   shouldReassertActivePanel,
+  warmedDockIds,
   shouldShowMaximizeButton,
 } from "./dock-helpers";
 
@@ -255,5 +256,42 @@ describe("shouldReassertActivePanel", () => {
 
   it("re-asserts when layout left the dock with no active panel", () => {
     expect(shouldReassertActivePanel(a, undefined)).toBe(true);
+  });
+});
+
+describe("warmedDockIds", () => {
+  const openAlways = () => true;
+
+  it("keeps a background workspace mounted", () => {
+    const warmed = new Set(["a", "b"]);
+    expect([...warmedDockIds(warmed, "a", openAlways)]).toEqual(["a", "b"]);
+  });
+
+  it("drops a workspace that has been closed", () => {
+    const warmed = new Set(["a", "b"]);
+    const kept = warmedDockIds(warmed, "a", (id) => id !== "b");
+    expect([...kept]).toEqual(["a"]);
+  });
+
+  it("warms the workspace that just became active", () => {
+    const kept = warmedDockIds(new Set(["a"]), "b", openAlways);
+    expect([...kept]).toEqual(["a", "b"]);
+  });
+
+  it("never unmounts the dock on screen, even mid-reopen", () => {
+    // `open` can lag a reopen by a commit; dropping the active workspace here
+    // would unmount the dock the user is looking at.
+    const kept = warmedDockIds(new Set(["a"]), "a", () => false);
+    expect([...kept]).toEqual(["a"]);
+  });
+
+  it("returns the same set when nothing changed, so no re-render follows", () => {
+    const warmed = new Set(["a", "b"]);
+    expect(warmedDockIds(warmed, "a", openAlways)).toBe(warmed);
+  });
+
+  it("handles having no active workspace at all", () => {
+    const kept = warmedDockIds(new Set(["a"]), null, () => false);
+    expect([...kept]).toEqual([]);
   });
 });
