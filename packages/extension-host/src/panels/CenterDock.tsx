@@ -18,6 +18,7 @@ import {
   resolveOpenWorkspaceMenuItems,
   useFolderExistence,
 } from "./open-workspace-menu";
+import { warmedDockIds } from "./dock-helpers";
 import { installDockFocusTracking } from "./dock-focus-tracking";
 import { markStartupLayoutReady } from "../extension-host/startup-status";
 import "dockview/dist/styles/dockview.css";
@@ -46,7 +47,7 @@ export function CenterDock() {
   );
   const folderExistence = useFolderExistence(closedFolders);
   const ctaRef = useRef<HTMLButtonElement | null>(null);
-  const [warmedIds, setWarmedIds] = useState<Set<string>>(() =>
+  const [warmedIds, setWarmedIds] = useState<ReadonlySet<string>>(() =>
     activeId ? new Set([activeId]) : new Set(),
   );
   const hasExisting =
@@ -78,15 +79,16 @@ export function CenterDock() {
     });
   }
 
+  // Which docks stay mounted: every open workspace already warmed, plus the
+  // active one. Closing a workspace drops it here, and that unmount is what
+  // runs its panels' cleanup — the only thing that disposes the agent sessions
+  // it owns. See `warmedDockIds`.
   useEffect(() => {
-    if (!activeId) return;
-    setWarmedIds((prev) => {
-      if (prev.has(activeId)) return prev;
-      const next = new Set(prev);
-      next.add(activeId);
-      return next;
-    });
-  }, [activeId]);
+    const openIds = new Set(wsState.open.map((ws) => ws.id));
+    setWarmedIds((prev) =>
+      warmedDockIds(prev, activeId, (id) => openIds.has(id)),
+    );
+  }, [activeId, wsState.open]);
 
   // No open workspace: layout restore is a no-op — finish the startup sequence.
   useEffect(() => {

@@ -4,6 +4,7 @@ import { store } from "../state/store";
 import { closeWorkspace } from "../state/workspaces";
 import { getUiService } from "./ui-service";
 import { confirmWithDontShowAgain } from "./confirm-with-dont-show-again";
+import { chatAgentInfos } from "./agents/chat-agent-registry";
 import { getGlobalExtensionStorage } from "./extension-storage";
 import { commandRegistry, executeCommand } from "./commands";
 import { contextMenuEntriesFor } from "./context-menu-items";
@@ -26,6 +27,55 @@ const workspacesStorage = getGlobalExtensionStorage("core.workspaces");
  * property-page tabs it renders — owned by the extension that owns them. */
 const PROPERTIES_COMMAND = "workspace.properties";
 
+/** How many Chat sessions in this workspace are mid-turn — the only ones whose
+ *  work a close would actually destroy. */
+export function workingChatAgentCount(workspaceId: string): number {
+  return chatAgentInfos().filter(
+    (a) => a.workspaceId === workspaceId && a.activity === "working",
+  ).length;
+}
+
+/** Wording for the agent warning. Only ever called for `count >= 1`. */
+export function describeWorkspaceAgentWarning(
+  count: number,
+  name: string,
+): string {
+  const agents = count === 1 ? "1 chat agent is" : `${count} chat agents are`;
+  const them = count === 1 ? "it" : "them";
+  return `${agents} working in "${name}". Closing the workspace will cancel ${them}. Terminals keep running.`;
+}
+
+/**
+ * Warn before a close cancels a Chat agent that is mid-turn, mirroring the
+ * app-quit guard (`agent-close-guard.ts`) — same reason, smaller blast radius.
+ *
+ * Closing a workspace unmounts its dock, and that unmount is what disposes its
+ * Chat sessions: unlike a terminal, whose PTY is daemon-backed and outlives the
+ * UI, an agent is a piped child and its turn dies with it. Keyed on
+ * `activity === "working"` rather than merely connected, because an idle
+ * session costs nothing to lose and warning about one would fire on nearly
+ * every close.
+ *
+ * Deliberately **not** a `confirmWithDontShowAgain`: the close confirm that
+ * follows is a reversible-action nicety worth letting the user silence, while
+ * this one says work is about to be thrown away. Resolves `true` when there is
+ * nothing working, so the common close is a single dialog.
+ */
+async function confirmCancellingWorkingAgents(
+  id: string,
+  name: string,
+): Promise<boolean> {
+  const working = workingChatAgentCount(id);
+  if (working === 0) return true;
+  return getUiService().confirm({
+    title: "Agents still running",
+    body: describeWorkspaceAgentWarning(working, name),
+    confirmLabel: "Close Anyway",
+    cancelLabel: "Cancel",
+    danger: true,
+  });
+}
+
 /**
  * Confirm, then close. The **one** close-confirm for a workspace — context
  * menus, the × button, the status-bar item, and the close command all go
@@ -41,6 +91,7 @@ export async function confirmAndCloseWorkspace(
   id: string,
   name: string,
 ): Promise<void> {
+  if (!(await confirmCancellingWorkingAgents(id, name))) return;
   const ok = await confirmWithDontShowAgain(getUiService(), workspacesStorage, {
     storageKey: "closeWorkspace.dontShowAgain",
     title: "Close workspace",

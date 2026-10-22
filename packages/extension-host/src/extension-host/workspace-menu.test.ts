@@ -4,7 +4,13 @@ import { store } from "../state/store";
 import {
   buildWorkspaceMenuItems,
   confirmAndCloseWorkspace,
+  describeWorkspaceAgentWarning,
+  workingChatAgentCount,
 } from "./workspace-menu";
+import {
+  registerChatAgent,
+  removeChatAgent,
+} from "./agents/chat-agent-registry";
 import { commandRegistry } from "./commands";
 import { registerContextMenuItem } from "./context-menu-items";
 import { getGlobalExtensionStorage } from "./extension-storage";
@@ -162,5 +168,91 @@ describe("confirmAndCloseWorkspace", () => {
       expect.anything(),
       expect.objectContaining({ dismissible: true }),
     );
+  });
+});
+
+describe("the working-agent guard on close", () => {
+  const agentIds: string[] = [];
+
+  function addChatAgent(
+    id: string,
+    workspaceId: string,
+    activity: "working" | "idle",
+  ) {
+    agentIds.push(id);
+    registerChatAgent({
+      id,
+      workspaceId,
+      activity,
+      isAgent: true,
+      title: id,
+    } as unknown as Parameters<typeof registerChatAgent>[0]);
+  }
+
+  afterEach(() => {
+    for (const id of agentIds.splice(0)) removeChatAgent(id);
+  });
+
+  it("counts only the mid-turn agents in this workspace", () => {
+    addChatAgent("a1", "ws_1", "working");
+    addChatAgent("a2", "ws_1", "idle");
+    addChatAgent("a3", "ws_2", "working");
+
+    expect(workingChatAgentCount("ws_1")).toBe(1);
+    expect(workingChatAgentCount("ws_2")).toBe(1);
+    expect(workingChatAgentCount("ws_none")).toBe(0);
+  });
+
+  it("names what a close would destroy, and what it would not", () => {
+    expect(describeWorkspaceAgentWarning(1, "api")).toBe(
+      '1 chat agent is working in "api". Closing the workspace will cancel it. Terminals keep running.',
+    );
+    expect(describeWorkspaceAgentWarning(3, "api")).toContain(
+      "3 chat agents are working",
+    );
+  });
+
+  it("warns before the close confirm and keeps the workspace open when declined", async () => {
+    addWorkspace("ws_1");
+    addChatAgent("a1", "ws_1", "working");
+    const confirmSpy = vi
+      .spyOn(getUiService(), "confirm")
+      .mockResolvedValue(false);
+    const showModal = vi.spyOn(getUiService(), "showModal");
+
+    await confirmAndCloseWorkspace("ws_1", "ws_1");
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ danger: true }),
+    );
+    // Declining the warning stops before the close confirm ever appears.
+    expect(showModal).not.toHaveBeenCalled();
+    expect(store.workspaces.ws_1?.closedAt).toBeFalsy();
+  });
+
+  it("falls through to the close confirm once the warning is accepted", async () => {
+    addWorkspace("ws_1");
+    addChatAgent("a1", "ws_1", "working");
+    vi.spyOn(getUiService(), "confirm").mockResolvedValue(true);
+    const showModal = vi
+      .spyOn(getUiService(), "showModal")
+      .mockResolvedValue(true);
+
+    await confirmAndCloseWorkspace("ws_1", "ws_1");
+
+    expect(showModal).toHaveBeenCalled();
+    expect(store.workspaces.ws_1?.closedAt).toBeTruthy();
+  });
+
+  it("stays a single dialog when nothing is mid-turn", async () => {
+    addWorkspace("ws_1");
+    addChatAgent("a1", "ws_1", "idle");
+    const confirmSpy = vi.spyOn(getUiService(), "confirm");
+    vi.spyOn(getUiService(), "showModal").mockResolvedValue(true);
+
+    await confirmAndCloseWorkspace("ws_1", "ws_1");
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(store.workspaces.ws_1?.closedAt).toBeTruthy();
   });
 });

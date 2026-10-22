@@ -213,3 +213,38 @@ export function sameParams(
     keys.every((k) => Object.is(a[k], b[k]))
   );
 }
+
+/**
+ * The workspace ids whose dock should stay mounted.
+ *
+ * A dock is *warmed* on first activation and then deliberately kept mounted so
+ * switching back is instant — that is the product premise, and it is why a
+ * **background** workspace keeps its terminals, agents and panels running while
+ * the user is somewhere else. A **closed** workspace is the opposite case: the
+ * user is done with it. Unmounting its dock is what runs its panels' cleanup,
+ * and that cleanup is the only thing that disposes a Chat panel's agent
+ * session — so while nothing ever dropped a closed id from this set, closing a
+ * workspace freed nothing at all and every session it owned stayed live for the
+ * rest of the app's life.
+ *
+ * The active workspace is always warm, whatever `isOpen` says: it is on screen,
+ * and a snapshot that has not caught up to a reopen yet must not unmount the
+ * dock the user is looking at.
+ *
+ * Returns the set it was given when nothing changed, so the caller can skip the
+ * state write — and the re-render — in the common case.
+ */
+export function warmedDockIds(
+  warmed: ReadonlySet<string>,
+  activeId: string | null,
+  isOpen: (workspaceId: string) => boolean,
+): ReadonlySet<string> {
+  const next = new Set<string>();
+  for (const id of warmed) {
+    if (id === activeId || isOpen(id)) next.add(id);
+  }
+  if (activeId) next.add(activeId);
+  if (next.size !== warmed.size) return next;
+  for (const id of warmed) if (!next.has(id)) return next;
+  return warmed;
+}
