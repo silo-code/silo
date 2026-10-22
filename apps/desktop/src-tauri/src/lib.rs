@@ -116,6 +116,16 @@ pub fn run() {
         .manage(commands::terminal::TerminalState::new())
         .manage(commands::process::ProcessStatsState::new())
         .manage(commands::cli::PendingLaunchArg::default())
+        // Reap the ACP children of the page being navigated away from. A reload
+        // runs no JS cleanup, so without this each one leaks an agent per live
+        // session — see `commands::acp::close_abandoned`. `Started` fires before
+        // the incoming document's scripts do, so the connections it goes on to
+        // open are registered after this drains and are never caught by it.
+        .on_page_load(|_webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started {
+                commands::acp::close_abandoned();
+            }
+        })
         .setup(|app| {
             commands::watch::register(app.handle());
 

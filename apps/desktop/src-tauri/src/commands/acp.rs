@@ -642,6 +642,36 @@ pub fn close_all() {
     }
 }
 
+/// Kill every ACP child left behind by a page that is going away. Wired into
+/// `on_page_load` in `lib.rs`.
+///
+/// A webview reload — `core.reloadWindow`, or WebKit reloading the document
+/// itself after a renderer crash — throws away the JS heap without running a
+/// single `dispose()`. The React cleanup that normally calls `acp_close` never
+/// fires, so every connection stays here with its child alive, while the page
+/// that comes back has no handle to any of them: it restores each Chat panel
+/// and reconnects it with `session/resume`, spawning a *second* agent for the
+/// same session. Nothing ever closed the first. One leaked agent per live
+/// session per reload, until the app finally exits (45 live `claude` children,
+/// 2-3 per session id, found on 2026-10-21).
+///
+/// Graceful (`close`, not `close_all`'s `close_now`): the app keeps running
+/// behind this, so there are future ticks for the SIGKILL escalation to fire
+/// on, and the agent gets to flush its own session file before it goes.
+///
+/// Connections are left registered rather than drained, exactly as `acp_close`
+/// leaves them: the entry is what a later `close_all` needs in order to force
+/// a child that ignored SIGTERM, and the reaper evicts it once the process is
+/// actually gone.
+pub fn close_abandoned() {
+    let conns: Vec<Arc<AcpConnection>> = lock(registry()).values().cloned().collect();
+    for conn in conns {
+        if !conn.has_exited() {
+            conn.close();
+        }
+    }
+}
+
 /// Write end of the self-pipe the exit-signal handler pokes. See
 /// {@link install_signal_reaper}.
 #[cfg(unix)]
@@ -1009,6 +1039,50 @@ mod tests {
         assert!(
             lock(registry()).is_empty(),
             "close_all left connections in the registry"
+        );
+    }
+
+    /// A webview reload runs no JS cleanup, so `close_abandoned` is the only
+    /// thing that reaps the outgoing page's agents. Without it the reloaded
+    /// page resumes each session into a *second* child and the first one runs
+    /// until the app quits.
+    #[cfg(unix)]
+    #[test]
+    fn close_abandoned_reaps_the_outgoing_pages_children() {
+        let _guard = registry_guard();
+        let pids: Vec<i32> = (0..3)
+            .map(|_| {
+                let (conn, grandchild) = spawn_with_grandchild(false);
+                register(conn);
+                grandchild
+            })
+            .collect();
+
+        close_abandoned();
+
+        for pid in pids {
+            assert!(
+                wait_until_dead(pid, Duration::from_secs(5)),
+                "close_abandoned left agent {pid} alive"
+            );
+        }
+    }
+
+    /// Unlike `close_all`, this one runs with the app still up — so a
+    /// connection stays registered until its process is actually reaped, which
+    /// is what lets a later `close_all` force one that ignored SIGTERM.
+    #[cfg(unix)]
+    #[test]
+    fn close_abandoned_keeps_a_stubborn_connection_registered() {
+        let _guard = registry_guard();
+        let (conn, _grandchild) = spawn_with_grandchild(true);
+        let (id, _conn) = register(conn);
+
+        close_abandoned();
+
+        assert!(
+            lock(registry()).contains_key(&id),
+            "close_abandoned dropped a connection still on its way out"
         );
     }
 
