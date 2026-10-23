@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.78.1](https://github.com/silo-code/silo/compare/silo-v0.78.0...silo-v0.78.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** make Clear actually reset the tab title ([#651](https://github.com/silo-code/silo/issues/651)) ([f543aae](https://github.com/silo-code/silo/commit/f543aae991c5ace14393ce6abfabf0066e59e847))
+* **agents:** reap agent processes on window reload and workspace close ([#655](https://github.com/silo-code/silo/issues/655)) ([922cc8c](https://github.com/silo-code/silo/commit/922cc8ce4ddf190ed2bc9a14f10f0ed4a8c2c0d6))
+* **panels:** keep a hovered tab's close button off its indicator glyph ([#652](https://github.com/silo-code/silo/issues/652)) ([e03a8bc](https://github.com/silo-code/silo/commit/e03a8bcd7a10dae5a88849b4fe082c38c6203c14))
+
+
+### Performance Improvements
+
+* **repo:** scope the pre-commit test gate to the packages a commit touches ([#654](https://github.com/silo-code/silo/issues/654)) ([e89cdfa](https://github.com/silo-code/silo/commit/e89cdfa57fcb5b539a0f587d46c23e327233b40a))
+
 ## [0.78.0](https://github.com/silo-code/silo/compare/silo-v0.77.0...silo-v0.78.0) (2026-10-20)
 
 
