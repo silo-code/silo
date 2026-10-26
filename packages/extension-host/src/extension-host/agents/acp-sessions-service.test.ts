@@ -1606,6 +1606,93 @@ describe("session config options (RFC 0038 Session 3.1)", () => {
     ).toBe("plan");
     expect(changed).toHaveBeenCalledTimes(1);
   });
+
+  /** The modes `claude-agent-acp` advertises, unlike the Cursor fixture above. */
+  const claudeConfig = [
+    {
+      id: "mode",
+      name: "Mode",
+      category: "mode",
+      type: "select",
+      currentValue: "plan",
+      options: [
+        { value: "default", name: "Manual" },
+        { value: "acceptEdits", name: "Accept edits" },
+        { value: "plan", name: "Plan" },
+      ],
+    },
+  ];
+
+  /** Answer an `ExitPlanMode` permission request with `optionId` and hand
+   *  back the `mode` option's value afterwards. */
+  async function approvePlanWith(optionId: string, toolName = "ExitPlanMode") {
+    fakeClient.newSession.mockResolvedValue({
+      sessionId: "s1",
+      configOptions: claudeConfig,
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    const changed = vi.fn();
+    handle.onConfigOptionsChanged(changed);
+    const seen = vi.fn();
+    handle.onPermission(seen);
+
+    captured.onPermission(
+      {
+        toolCallId: "tc1",
+        title: "Ready to code?",
+        options: [
+          { optionId, name: "Yes", kind: "allow_always" },
+          {
+            optionId: "reject",
+            name: "No, keep planning",
+            kind: "reject_once",
+          },
+        ],
+        raw: { toolCall: { toolCallId: "tc1", name: toolName } },
+      },
+      vi.fn(),
+    );
+    seen.mock.calls[0][0].respond(optionId);
+    return {
+      mode: handle.configOptions.find((o) => o.id === "mode")!.currentValue,
+      changed,
+    };
+  }
+
+  it("leaves plan mode when the user approves the plan without clearing context", async () => {
+    // The gap this closes: `claude-agent-acp` moves the session to
+    // acceptEdits via `updatedPermissions` and sends no `current_mode_update`,
+    // so without this the picker would still read "plan".
+    const { mode, changed } = await approvePlanWith("exit-plan-accept-edits");
+    expect(mode).toBe("acceptEdits");
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops back to manual approval when the user picks that accept", async () => {
+    const { mode } = await approvePlanWith("exit-plan-default");
+    expect(mode).toBe("default");
+  });
+
+  it("stays in plan mode when the user keeps planning", async () => {
+    const { mode, changed } = await approvePlanWith("reject");
+    expect(mode).toBe("plan");
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it("ignores a plan-shaped option id on some other tool", async () => {
+    const { mode, changed } = await approvePlanWith(
+      "exit-plan-accept-edits",
+      "Write",
+    );
+    expect(mode).toBe("plan");
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it("never pushes the mode back to the agent — it already made the change", async () => {
+    await approvePlanWith("exit-plan-accept-edits");
+    expect(fakeClient.setConfigOption).not.toHaveBeenCalled();
+  });
 });
 
 // RFC 0040 — commands (skills included, unsplit) and prompt capabilities.

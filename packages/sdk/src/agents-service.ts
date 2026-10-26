@@ -1628,9 +1628,12 @@ export interface AgentSessionConfigOption {
   readonly type: string;
   /**
    * The currently-selected {@link AgentSessionConfigChoice.value}. Kept
-   * current when the agent moves it itself (an ACP `current_mode_update`), so
-   * a bound control always reflects reality — subscribe with
-   * {@link AgentSessionHandle.onConfigOptionsChanged}.
+   * current when the agent moves it itself, so a bound control always
+   * reflects reality — subscribe with
+   * {@link AgentSessionHandle.onConfigOptionsChanged}. That covers an ACP
+   * `current_mode_update` and a plan approval whose chosen option leaves the
+   * session in a new permission mode (Silo derives the latter, because the
+   * agent changes mode there without announcing it).
    */
   readonly currentValue: string;
   /** The choices, in the agent's order. */
@@ -1847,8 +1850,9 @@ export interface AgentSessionHandle {
   /**
    * Fires whenever {@link configOptions} changes — a {@link setConfigOption}
    * landing, or the agent moving a value on its own (an ACP
-   * `current_mode_update`). Re-read {@link configOptions} from the handle.
-   * Returns a {@link Disposable}.
+   * `current_mode_update`, or the permission mode a plan approval leaves
+   * behind). Re-read {@link configOptions} from the handle. Returns a
+   * {@link Disposable}.
    */
   onConfigOptionsChanged(listener: () => void): Disposable;
   /**

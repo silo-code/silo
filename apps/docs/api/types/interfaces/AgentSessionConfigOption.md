@@ -105,14 +105,17 @@ value as "do not render".
 readonly currentValue: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1635](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1635)
+Defined in: [packages/sdk/src/agents-service.ts:1638](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1638)
 
 **`Beta`**
 
 The currently-selected [AgentSessionConfigChoice.value](AgentSessionConfigChoice.md#value). Kept
-current when the agent moves it itself (an ACP `current_mode_update`), so
-a bound control always reflects reality — subscribe with
-[AgentSessionHandle.onConfigOptionsChanged](AgentSessionHandle.md#onconfigoptionschanged).
+current when the agent moves it itself, so a bound control always
+reflects reality — subscribe with
+[AgentSessionHandle.onConfigOptionsChanged](AgentSessionHandle.md#onconfigoptionschanged). That covers an ACP
+`current_mode_update` and a plan approval whose chosen option leaves the
+session in a new permission mode (Silo derives the latter, because the
+agent changes mode there without announcing it).
 
 ***
 
@@ -122,7 +125,7 @@ a bound control always reflects reality — subscribe with
 readonly options: readonly AgentSessionConfigChoice[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1637](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1637)
+Defined in: [packages/sdk/src/agents-service.ts:1640](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1640)
 
 **`Beta`**
 
