@@ -62,6 +62,7 @@ import {
   type AcpSessionUpdate,
 } from "./acp-jsonrpc";
 import { toAnswerSummary, toElicitationContent } from "./elicitation-schema";
+import { modeAfterPlanApproval, permissionToolName } from "./exit-plan-mode";
 import {
   getChatAgentEntry,
   patchChatAgent,
@@ -794,6 +795,32 @@ export function createAgentSessionsService(
         }
       }
 
+      /**
+       * Reflect a mode the **agent** has already moved to onto the `mode`
+       * config option, so a bound `Select` is never stale. Local only: the
+       * agent is the one that changed it, so there is nothing to push back.
+       *
+       * Two callers — the `current_mode_update` the agent sends itself, and
+       * the plan approval it answers by changing mode without telling anyone
+       * (see `exit-plan-mode.ts`). Both land here so there is one copy of the
+       * "same value, no event" and immutable-replace rules.
+       */
+      function applyAgentMode(next: string): void {
+        const idx = configOptions.findIndex((o) => o.category === "mode");
+        if (idx < 0 || configOptions[idx].currentValue === next) return;
+        configOptions = configOptions.map((o, i) =>
+          i === idx ? { ...o, currentValue: next } : o,
+        );
+        fireConfigChanged();
+      }
+
+      /** The `value`s the session's `mode` config option offers, for the
+       *  plan-approval inference's "is this mode even real here" guard. */
+      function availableModeValues(): readonly string[] {
+        const mode = configOptions.find((o) => o.category === "mode");
+        return mode ? mode.options.map((c) => c.value) : [];
+      }
+
       function fireCommandsChanged(): void {
         for (const l of commandListeners) {
           try {
@@ -1041,13 +1068,7 @@ export function createAgentSessionsService(
           // the `mode` config option so a bound Select is never stale.
           if (update.sessionUpdate === "current_mode_update") {
             const next = currentModeFromUpdate(update);
-            const idx = configOptions.findIndex((o) => o.category === "mode");
-            if (next && idx >= 0 && configOptions[idx].currentValue !== next) {
-              configOptions = configOptions.map((o, i) =>
-                i === idx ? { ...o, currentValue: next } : o,
-              );
-              fireConfigChanged();
-            }
+            if (next) applyAgentMode(next);
           }
           // The agent volunteered a label for the conversation. One signal,
           // many consumers: it lands on `AgentInfo.title`, and the dock tab,
@@ -1070,10 +1091,24 @@ export function createAgentSessionsService(
             return;
           }
           let answered = false;
+          const toolName = permissionToolName(request.raw);
           const sdkReq = toSdkPermission(request, (outcome) => {
             answered = true;
             respond(outcome);
             clearBlockedOnUser();
+            // Approving a plan moves the session's permission mode as a side
+            // effect of *answering this request* — on `claude-agent-acp` the
+            // accepts that don't also clear context change mode without
+            // sending a `current_mode_update`, so nothing else would tell the
+            // picker. Derived after responding: the answer is what the agent
+            // acts on, and this is only bookkeeping.
+            if (outcome.outcome !== "selected") return;
+            const mode = modeAfterPlanApproval({
+              toolName,
+              optionId: outcome.optionId,
+              availableModes: availableModeValues(),
+            });
+            if (mode) applyAgentMode(mode);
           });
           for (const l of permissionListeners) {
             try {
