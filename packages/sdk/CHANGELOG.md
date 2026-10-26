@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.62.1](https://github.com/silo-code/silo/compare/sdk-v0.62.0...sdk-v0.62.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **agents:** follow the mode a plan approval leaves the session in ([#656](https://github.com/silo-code/silo/issues/656)) ([e66f89b](https://github.com/silo-code/silo/commit/e66f89b829a645bab149f0d68b5ee83edfb80e9b))
+
 ## [0.62.0](https://github.com/silo-code/silo/compare/sdk-v0.61.0...sdk-v0.62.0) (2026-10-20)
 
 
