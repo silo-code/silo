@@ -320,6 +320,12 @@ import {
   spacerHeightPx,
   transcriptWindow,
 } from "./transcript-mount";
+import { PromptRail } from "./PromptRail";
+import {
+  PROMPT_RAIL_MIN_PROMPTS,
+  PROMPT_SCROLL_MARGIN_PX,
+  promptTicks,
+} from "./prompt-rail";
 
 export interface AcpChatPanelParams {
   /**
@@ -1562,8 +1568,10 @@ const TranscriptTurn = memo(
     startedAt: number | undefined;
   }) {
     const rest = useMemo(() => foldToolRuns(turn.rest), [turn.rest]);
+    // `data-turn-key` is how the Prompt Rail finds a turn's row to scroll to —
+    // the transcript carries no other DOM identity.
     return (
-      <div className="acp-chat__turn">
+      <div className="acp-chat__turn" data-turn-key={turn.user?.key}>
         {turn.user ? <TranscriptRow entry={turn.user} tools={tools} /> : null}
         {rest.length > 0 ? (
           <div className="acp-chat__turn-body">
@@ -3027,6 +3035,59 @@ export function AcpChatPanel({
     writeScrollParams(snap);
   }, [writeScrollParams]);
 
+  // A Prompt Rail click whose turn is still behind the head spacer, waiting
+  // for `revealHead` to put it in the DOM. See `scrollToPrompt`.
+  const pendingPromptRef = useRef<string | null>(null);
+
+  // The Prompt Rail's click handler — brings a turn's row to the top of the
+  // viewport. Records `pinned: false` for the same reason `jumpToBottom`
+  // records `pinned: true`: the autoscroll effect below runs on every commit
+  // and would drag the scroller straight back to the bottom otherwise.
+  const scrollToPrompt = useCallback(
+    (key: string) => {
+      const el = scrollerRef.current;
+      if (!el) return;
+      const row = el.querySelector<HTMLElement>(
+        `.acp-chat__turn[data-turn-key="${CSS.escape(key)}"]`,
+      );
+      if (!row) {
+        // Only the tail is mounted and this turn is in the head. Reveal it and
+        // finish the jump once the real rows have replaced the spacer.
+        pendingPromptRef.current = key;
+        revealHead();
+        return;
+      }
+      pendingPromptRef.current = null;
+      // Rects rather than `offsetTop`: the turn's offset parent is the
+      // transcript wrapper, not the scroller, so the two offsets differ by the
+      // scroller's own border and padding. The delta between the live rects
+      // needs no such correction.
+      const delta =
+        row.getBoundingClientRect().top - el.getBoundingClientRect().top;
+      el.scrollTop = Math.max(
+        0,
+        el.scrollTop + delta - PROMPT_SCROLL_MARGIN_PX,
+      );
+      const snap = { top: el.scrollTop, pinned: false };
+      liveScrollRef.current = snap;
+      setPinnedToBottom(false);
+      writeScrollParams(snap);
+    },
+    [revealHead, writeScrollParams],
+  );
+
+  // Finishes a jump that had to wait for the head. Ordered after the reveal's
+  // own scroll adjustment above, so it lands on settled geometry rather than
+  // being nudged by the spacer's measurement error.
+  useLayoutEffect(() => {
+    const key = pendingPromptRef.current;
+    if (key === null || droppedFrom !== null) return;
+    // Cleared before the retry, not by it: one attempt, so a key that somehow
+    // still has no row can't sit in the ref and fire on an unrelated reveal.
+    pendingPromptRef.current = null;
+    scrollToPrompt(key);
+  }, [droppedFrom, scrollToPrompt]);
+
   // Every transcript change is another chance for the content to grow tall
   // enough to hold a saved offset, so it also extends the retry window below.
   useEffect(() => {
@@ -3325,6 +3386,7 @@ export function AcpChatPanel({
       ),
     [transcript.entries, liveQuestionIds],
   );
+  const promptRailTicks = useMemo(() => promptTicks(turns), [turns]);
 
   turnCountRef.current = turns.length;
   const window_ = transcriptWindow({
@@ -3725,252 +3787,269 @@ export function AcpChatPanel({
       onClick={onPanelClick}
       onKeyDown={onPanelKeyDown}
     >
-      <div
-        className="acp-chat__scroller"
-        ref={scrollerRef}
-        onScroll={onScroll}
-        onClick={onTranscriptClick}
-        onContextMenu={onTranscriptContextMenu}
-      >
-        {phase.status === "error" ? (
-          <div className="acp-chat__notice">
-            <EmptyState
-              title={`Could not start ${profile?.label ?? "the agent"}`}
-              description={phase.message}
-              action={
-                <Button onClick={() => setNonce((n) => n + 1)}>Retry</Button>
-              }
-            />
-          </div>
-        ) : null}
+      {/* Wraps the scroller purely to give the Prompt Rail a containing block
+          that is exactly the transcript area. `.acp-chat` would be the wrong
+          anchor — it includes the composer, and the rail would run underneath
+          it. The flex sizing chain is unchanged: this takes the growth the
+          scroller had, and the scroller keeps its own inside. */}
+      <div className="acp-chat__transcript">
+        <div
+          className="acp-chat__scroller"
+          ref={scrollerRef}
+          onScroll={onScroll}
+          onClick={onTranscriptClick}
+          onContextMenu={onTranscriptContextMenu}
+        >
+          {phase.status === "error" ? (
+            <div className="acp-chat__notice">
+              <EmptyState
+                title={`Could not start ${profile?.label ?? "the agent"}`}
+                description={phase.message}
+                action={
+                  <Button onClick={() => setNonce((n) => n + 1)}>Retry</Button>
+                }
+              />
+            </div>
+          ) : null}
 
-        {/* Off screen, the transcript renders no rows at all.
-         *
-         * Not a paint optimization — the browser already skips painting a
-         * hidden dock. This is about **render-tree size**, which is the second
-         * of the two factors behind RFC 0050's stall:
-         *
-         *  1. Once the WebContent process crosses WebKit's memory-pressure
-         *     threshold (measured cliff 1.5-1.8 GB), WebKit's pressure handler
-         *     starts dropping the style resolver and inline-layout caches. That
-         *     invalidates style and layout for the **entire document**, on
-         *     WebKit's own timer, with no JavaScript involved.
-         *  2. The cost of each of those is proportional to the whole document's
-         *     render tree — 390 ms at 87k nodes versus 52 ms at 698.
-         *
-         * `CenterDock` keeps every warmed workspace's dock in that one
-         * document, and a real transcript is ~15,000 nodes, so N warmed
-         * workspaces multiply factor 2 by N. Rendering only the on-screen
-         * transcript keeps the tree at one transcript's worth no matter how
-         * many workspaces are warm.
-         *
-         * Safe to drop the rows because **the panel does not unmount** — this
-         * is the same component, returning fewer children. `transcript.entries`
-         * stays in memory, so there is no re-seed from the journal, no second
-         * fold, and no entry-identity churn. The only thing DOM detachment
-         * costs is `scrollTop`, which this panel already stores twice over
-         * (`liveScrollRef` plus `params.scrollTop` in its `DockPanelRecord`)
-         * and already re-asserts on every transition back on screen — see the
-         * scroll-restore design comment above.
-         *
-         * Terminals are deliberately untouched: this is why the fix lives here
-         * and not in `CenterDock`. Unmounting a whole dock would force an xterm
-         * refit, which is the very thing the warmed-dock design exists to avoid.
-         */}
-        {/* Stands in for the turns above the tail, at their measured height, so
+          {/* Off screen, the transcript renders no rows at all.
+           *
+           * Not a paint optimization — the browser already skips painting a
+           * hidden dock. This is about **render-tree size**, which is the second
+           * of the two factors behind RFC 0050's stall:
+           *
+           *  1. Once the WebContent process crosses WebKit's memory-pressure
+           *     threshold (measured cliff 1.5-1.8 GB), WebKit's pressure handler
+           *     starts dropping the style resolver and inline-layout caches. That
+           *     invalidates style and layout for the **entire document**, on
+           *     WebKit's own timer, with no JavaScript involved.
+           *  2. The cost of each of those is proportional to the whole document's
+           *     render tree — 390 ms at 87k nodes versus 52 ms at 698.
+           *
+           * `CenterDock` keeps every warmed workspace's dock in that one
+           * document, and a real transcript is ~15,000 nodes, so N warmed
+           * workspaces multiply factor 2 by N. Rendering only the on-screen
+           * transcript keeps the tree at one transcript's worth no matter how
+           * many workspaces are warm.
+           *
+           * Safe to drop the rows because **the panel does not unmount** — this
+           * is the same component, returning fewer children. `transcript.entries`
+           * stays in memory, so there is no re-seed from the journal, no second
+           * fold, and no entry-identity churn. The only thing DOM detachment
+           * costs is `scrollTop`, which this panel already stores twice over
+           * (`liveScrollRef` plus `params.scrollTop` in its `DockPanelRecord`)
+           * and already re-asserts on every transition back on screen — see the
+           * scroll-restore design comment above.
+           *
+           * Terminals are deliberately untouched: this is why the fix lives here
+           * and not in `CenterDock`. Unmounting a whole dock would force an xterm
+           * refit, which is the very thing the warmed-dock design exists to avoid.
+           */}
+          {/* Stands in for the turns above the tail, at their measured height, so
             total content height — and therefore `scrollTop` — is unchanged by
             the swap. Scrolling up into it calls `revealHead`. */}
-        {window_.kind === "tail" ? (
-          <div
-            className="acp-chat__head-spacer"
-            style={{ height: window_.spacerPx }}
-            aria-hidden="true"
-          />
-        ) : null}
+          {window_.kind === "tail" ? (
+            <div
+              className="acp-chat__head-spacer"
+              style={{ height: window_.spacerPx }}
+              aria-hidden="true"
+            />
+          ) : null}
 
-        {window_.kind !== "dropped"
-          ? (window_.kind === "tail" ? turns.slice(window_.from) : turns).map(
-              (turn, i, all) => {
-                const running = busy && i === all.length - 1;
-                return (
-                  <TranscriptTurn
-                    key={turn.key}
-                    turn={turn}
-                    tools={toolRowState}
-                    running={running}
-                    durationMs={
-                      turn.user ? turnDurations[turn.user.key] : undefined
-                    }
-                    // Only the running turn is told when the turn started —
-                    // otherwise every *finished* turn would take a new
-                    // `startedAt` the moment the next one begins, and all of them
-                    // would re-render for a value none of them shows.
-                    startedAt={
-                      running ? turnStartRef.current?.startedAt : undefined
-                    }
-                  />
-                );
-              },
-            )
-          : null}
+          {window_.kind !== "dropped"
+            ? (window_.kind === "tail" ? turns.slice(window_.from) : turns).map(
+                (turn, i, all) => {
+                  const running = busy && i === all.length - 1;
+                  return (
+                    <TranscriptTurn
+                      key={turn.key}
+                      turn={turn}
+                      tools={toolRowState}
+                      running={running}
+                      durationMs={
+                        turn.user ? turnDurations[turn.user.key] : undefined
+                      }
+                      // Only the running turn is told when the turn started —
+                      // otherwise every *finished* turn would take a new
+                      // `startedAt` the moment the next one begins, and all of them
+                      // would re-render for a value none of them shows.
+                      startedAt={
+                        running ? turnStartRef.current?.startedAt : undefined
+                      }
+                    />
+                  );
+                },
+              )
+            : null}
 
-        {/* Inline, in the flow of the transcript — never a modal. The agent is
+          {/* Inline, in the flow of the transcript — never a modal. The agent is
             blocked on this answer, and a modal would both hide the transcript
             that explains what it is asking about and stop the user reading the
             rest of the app. */}
-        {permissions.map((pending) => (
-          <div key={pending.key} className="acp-chat__permission">
-            <div className="acp-chat__permission-title">
-              {pending.request.title}
-            </div>
-            {/* Recon Finding 1: an agent may touch the filesystem without ever
+          {permissions.map((pending) => (
+            <div key={pending.key} className="acp-chat__permission">
+              <div className="acp-chat__permission-title">
+                {pending.request.title}
+              </div>
+              {/* Recon Finding 1: an agent may touch the filesystem without ever
                 asking. Silo must not imply it gates anything. */}
-            <div className="acp-chat__permission-note">
-              The agent asked before doing this. It is not required to — Silo
-              does not gate what an agent can do.
+              <div className="acp-chat__permission-note">
+                The agent asked before doing this. It is not required to — Silo
+                does not gate what an agent can do.
+              </div>
+              <div className="acp-chat__permission-actions">
+                {pending.request.options.map((option) => (
+                  <Button
+                    key={option.optionId}
+                    size="sm"
+                    variant={permissionButtonVariant(option.kind)}
+                    onClick={() => answer(pending, option.optionId)}
+                  >
+                    {option.name}
+                  </Button>
+                ))}
+              </div>
             </div>
-            <div className="acp-chat__permission-actions">
-              {pending.request.options.map((option) => (
-                <Button
-                  key={option.optionId}
-                  size="sm"
-                  variant={permissionButtonVariant(option.kind)}
-                  onClick={() => answer(pending, option.optionId)}
-                >
-                  {option.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
 
-        {/* RFC 0062 — the agent asked a structured question. Inline for the
+          {/* RFC 0062 — the agent asked a structured question. Inline for the
             same reason as the permission card above: a modal would hide the
             conversation that explains what is being asked. */}
-        {questions.map((pending) => {
-          const { request, form } = pending;
-          const active = activeQuestion(request.questions, pending.activeId);
-          // What the agent would actually receive — an abandoned draft is
-          // still in `form` (the box shows it) but counts for nothing here.
-          const sending = effectiveAnswers(
-            form,
-            request.questions,
-            pending.customChosen,
-          );
-          const sendable = canSubmit(sending, request.questions);
-          const answered = answeredCount(sending, request.questions);
-          return (
-            <div key={pending.key} className="acp-chat__question">
-              <div className="acp-chat__question-title">{request.message}</div>
-              {/* One tab per question (RFC 0062 follow-up), always — including
+          {questions.map((pending) => {
+            const { request, form } = pending;
+            const active = activeQuestion(request.questions, pending.activeId);
+            // What the agent would actually receive — an abandoned draft is
+            // still in `form` (the box shows it) but counts for nothing here.
+            const sending = effectiveAnswers(
+              form,
+              request.questions,
+              pending.customChosen,
+            );
+            const sendable = canSubmit(sending, request.questions);
+            const answered = answeredCount(sending, request.questions);
+            return (
+              <div key={pending.key} className="acp-chat__question">
+                <div className="acp-chat__question-title">
+                  {request.message}
+                </div>
+                {/* One tab per question (RFC 0062 follow-up), always — including
                   a lone one, so every ask reads the same and the agent's
                   header always has somewhere to sit. The protocol has no
                   notion of tabs; this is presentation, and the CLI reads the
                   same flat payload the same way. */}
-              {active ? (
-                <>
-                  <Tabs
-                    tabs={questionTabs(request.questions, sending).map((t) => ({
-                      id: t.id,
-                      label: t.label,
-                      icon: (
-                        // Named, not `aria-hidden`. Showing one question at a
-                        // time is what makes this marker necessary in the
-                        // first place; hiding it from assistive tech would
-                        // take the affordance away from exactly the users who
-                        // cannot glance at the strip to recover it.
-                        <span
-                          className="acp-chat__question-tab-state"
-                          data-answered={t.answered || undefined}
-                          role="img"
-                          aria-label={t.answered ? "Answered" : "Not answered"}
-                        >
-                          {t.answered ? (
-                            <CheckCircle size="1em" weight="fill" />
-                          ) : (
-                            <Circle size="1em" />
-                          )}
-                        </span>
-                      ),
-                    }))}
-                    active={active.id}
-                    onSelect={(id) => selectQuestionTab(pending, id)}
-                  />
-                  <TabPanel>
-                    <QuestionField
-                      question={active}
-                      form={form}
-                      single={request.questions.length === 1}
-                      customChosen={isCustomChosen(
-                        pending.customChosen,
-                        active.id,
+                {active ? (
+                  <>
+                    <Tabs
+                      tabs={questionTabs(request.questions, sending).map(
+                        (t) => ({
+                          id: t.id,
+                          label: t.label,
+                          icon: (
+                            // Named, not `aria-hidden`. Showing one question at a
+                            // time is what makes this marker necessary in the
+                            // first place; hiding it from assistive tech would
+                            // take the affordance away from exactly the users who
+                            // cannot glance at the strip to recover it.
+                            <span
+                              className="acp-chat__question-tab-state"
+                              data-answered={t.answered || undefined}
+                              role="img"
+                              aria-label={
+                                t.answered ? "Answered" : "Not answered"
+                              }
+                            >
+                              {t.answered ? (
+                                <CheckCircle size="1em" weight="fill" />
+                              ) : (
+                                <Circle size="1em" />
+                              )}
+                            </span>
+                          ),
+                        }),
                       )}
-                      onEdit={(edit) => editQuestion(pending, edit)}
-                      onToggleCustom={(next) =>
-                        toggleQuestionCustom(pending, active.id, next)
-                      }
+                      active={active.id}
+                      onSelect={(id) => selectQuestionTab(pending, id)}
                     />
-                  </TabPanel>
-                </>
-              ) : null}
-              <div className="acp-chat__question-actions">
-                <Tooltip
-                  content={
-                    sendable
-                      ? "Send these answers to the agent"
-                      : "Answer at least one question, or Skip"
-                  }
-                >
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={!sendable}
-                    onClick={() => answerQuestion(pending, "send")}
-                  >
-                    Send
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Don't answer. The agent carries on without this.">
-                  <Button
-                    size="sm"
-                    onClick={() => answerQuestion(pending, "skip")}
-                  >
-                    Skip
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Stop what the agent was doing when it asked.">
-                  <Button
-                    size="sm"
-                    onClick={() => answerQuestion(pending, "cancel")}
-                  >
-                    Cancel
-                  </Button>
-                </Tooltip>
-                {request.questions.length > 1 ? (
-                  <span className="acp-chat__question-progress">
-                    {answered} of {request.questions.length} answered
-                  </span>
+                    <TabPanel>
+                      <QuestionField
+                        question={active}
+                        form={form}
+                        single={request.questions.length === 1}
+                        customChosen={isCustomChosen(
+                          pending.customChosen,
+                          active.id,
+                        )}
+                        onEdit={(edit) => editQuestion(pending, edit)}
+                        onToggleCustom={(next) =>
+                          toggleQuestionCustom(pending, active.id, next)
+                        }
+                      />
+                    </TabPanel>
+                  </>
                 ) : null}
+                <div className="acp-chat__question-actions">
+                  <Tooltip
+                    content={
+                      sendable
+                        ? "Send these answers to the agent"
+                        : "Answer at least one question, or Skip"
+                    }
+                  >
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={!sendable}
+                      onClick={() => answerQuestion(pending, "send")}
+                    >
+                      Send
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content="Don't answer. The agent carries on without this.">
+                    <Button
+                      size="sm"
+                      onClick={() => answerQuestion(pending, "skip")}
+                    >
+                      Skip
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content="Stop what the agent was doing when it asked.">
+                    <Button
+                      size="sm"
+                      onClick={() => answerQuestion(pending, "cancel")}
+                    >
+                      Cancel
+                    </Button>
+                  </Tooltip>
+                  {request.questions.length > 1 ? (
+                    <span className="acp-chat__question-progress">
+                      {answered} of {request.questions.length} answered
+                    </span>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {/* RFC 0042: neither `session/resume` nor `session/load` worked for
+          {/* RFC 0042: neither `session/resume` nor `session/load` worked for
             this persisted session. The transcript above is the journal alone
             — there is no live agent to prompt in place. */}
-        {readOnly ? (
-          <div className="acp-chat__notice">
-            <EmptyState
-              title="This session can't be resumed"
-              description={`${profile?.label ?? agentName ?? "The agent"} could not reconnect this conversation. Nothing is lost — start a new one to keep going.`}
-              action={
-                <Button onClick={continueInNewSession}>
-                  Continue in a new session
-                </Button>
-              }
-            />
-          </div>
+          {readOnly ? (
+            <div className="acp-chat__notice">
+              <EmptyState
+                title="This session can't be resumed"
+                description={`${profile?.label ?? agentName ?? "The agent"} could not reconnect this conversation. Nothing is lost — start a new one to keep going.`}
+                action={
+                  <Button onClick={continueInNewSession}>
+                    Continue in a new session
+                  </Button>
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+
+        {promptRailTicks.length >= PROMPT_RAIL_MIN_PROMPTS ? (
+          <PromptRail ticks={promptRailTicks} onSelect={scrollToPrompt} />
         ) : null}
       </div>
 
