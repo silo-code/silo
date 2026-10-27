@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.79.0](https://github.com/silo-code/silo/compare/silo-v0.78.2...silo-v0.79.0) (2026-10-27)
+
+
+### Features
+
+* **agents-chat-panel:** add a Prompt Rail for jumping back to an earlier prompt ([#659](https://github.com/silo-code/silo/issues/659)) ([6e172ca](https://github.com/silo-code/silo/commit/6e172cac0a0c6c43f82ee29fff523f4b170f8b2e))
+
 ## [0.78.2](https://github.com/silo-code/silo/compare/silo-v0.78.1...silo-v0.78.2) (2026-10-26)
 
 
