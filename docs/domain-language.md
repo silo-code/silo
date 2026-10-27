@@ -832,6 +832,18 @@ _Avoid_: "chat log" / "history" (history is the agent's own stored
 conversations, which Silo reaches via `session/load`, not what is on screen);
 "output" (that is the Output panel).
 
+**Prompt Rail** (`prompt-rail.ts`, `PromptRail.tsx`) — the column of thin
+dashes down a **Transcript**'s right edge, one per user prompt in order, for
+getting back to an earlier question in a long conversation. Faint at rest; the
+dash under the cursor lengthens and darkens with its neighbours tapering off,
+a preview of that prompt follows the cursor, and clicking scrolls the
+Transcript to that **Prompt Turn**. Appears once a conversation has three or
+more prompts. A pointer affordance only — it duplicates content already in the
+Transcript, which stays the accessible path.
+_Avoid_: "minimap" (it is positional in the prompt sequence, not a scaled
+picture of the content); "scrollbar" (the scroller has its own, and the rail
+does not track the viewport); "timeline".
+
 **Tool call group** — a run of `TOOL_GROUP_THRESHOLD` (6) or more consecutive
 tool-call rows in a **Transcript** with no diff-producing call among them,
 folded under one collapsible header (`ToolGroupEntry`, produced by

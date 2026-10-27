@@ -48,6 +48,19 @@
   flex: none;
 }
 
+/* Takes the growth the scroller used to have, so the flex chain is unchanged,
+   and adds the one thing the scroller cannot provide: a containing block the
+   Prompt Rail can span without covering the composer. Relative rather than
+   `backdrop-filter` or any other implicit containing block — see the file
+   header on why those break the scroller's sizing. */
+.acp-chat__transcript {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .acp-chat__scroller {
   flex: 1 1 auto;
   min-height: 0;
@@ -64,6 +77,84 @@
      room between the last line of transcript and the composer's top
      divider than the sides get. */
   padding: 12px 14px 24px;
+}
+
+/* --- prompt rail --------------------------------------------------------- */
+/* One dash per user prompt down the transcript's right edge, for getting back
+   to an earlier question. Faint at rest; the dash under the cursor lengthens
+   and darkens, its neighbours less so, and a preview of that prompt follows
+   the cursor. Geometry comes from `prompt-rail.ts` as inline `top` / `width` /
+   `opacity` — only the resting look and the easing are here.
+
+   Overlaps the transcript rather than reserving a gutter (Dave's call). The
+   scroller's own 14px right padding means that in practice it only reaches the
+   outer edge of agent markdown; the user bubble is right-aligned and stops at
+   that padding. */
+
+.acp-chat__prompt-rail {
+  position: absolute;
+  top: 0;
+  /* Clear of the scroller's scrollbar (10px, `theme.css`) plus a hair, so the
+     dashes never sit on the thumb and neither one steals the other's drag. */
+  right: 12px;
+  bottom: 0;
+  /* The hover target. A dash at full emphasis is longer than this and spills
+     left over the transcript, which is the intent — the target stays the
+     narrow strip at the edge so crossing the rail is deliberate. */
+  width: 28px;
+  z-index: 2;
+  cursor: pointer;
+  /* `--silo-color-text-hi`, not the muted `--silo-color-text-lo` a resting
+     affordance would normally take. The dark themes paint this panel on
+     `--silo-color-content-bg` (#0f1115) and set `text-lo` to #3c3c3c, so a
+     resting dash drawn from it composites to roughly 1.1:1 — invisible, which
+     is what the first cut of this shipped. `text-hi` is the one text token
+     with similar weight in both families (#666 dark / #6b6b6b light), so the
+     rail reads the same either way and the resting opacity below does the
+     "subtle" work instead of the colour. */
+  color: var(--silo-color-text-hi);
+}
+
+.acp-chat__prompt-tick {
+  position: absolute;
+  right: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentcolor;
+  /* The rail owns the pointer; a tick must never be the event target, or
+     crossing one would read as leaving the rail. */
+  pointer-events: none;
+  transition:
+    width 100ms ease-out,
+    opacity 100ms ease-out;
+}
+
+.acp-chat__prompt-tick[data-active] {
+  color: var(--silo-color-accent);
+}
+
+/* Follows the cursor and is purely informational — never a hit target, or it
+   would sit between the pointer and the rail it is describing. */
+.acp-chat__prompt-preview {
+  position: absolute;
+  /* Clear of the dashes, not just of the rail. A dash at full emphasis starts
+     3px inside a rail already inset 12px and runs 38px, so it reaches 53px in
+     — a card any closer than this covers the very dashes it is describing and
+     you cannot see which one is selected. */
+  right: 64px;
+  max-width: min(380px, 70%);
+  padding: 6px 10px;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: var(--silo-radius-sm);
+  background: var(--silo-color-button-bg);
+  color: var(--silo-color-input-text);
+  font-size: var(--silo-font-size-sm);
+  line-height: 1.4;
+  /* Elevation only — the one sanctioned exception to design-tokens-only,
+     matching `.acp-chat__command-palette`. */
+  box-shadow: 0 4px 16px rgb(0 0 0 / 24%);
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* --- turns --------------------------------------------------------------- */
