@@ -272,6 +272,7 @@ import {
 } from "./LinkifiedText";
 import { isLinkActivationClick } from "./link-policy";
 import { isPanelBackgroundClick } from "./panel-focus";
+import { fileDropPaths } from "./file-drop";
 import { resolveChatFilePath } from "./resolve-chat-path";
 import { buildChatSelectionMenu } from "./selection-menu";
 import {
@@ -2926,12 +2927,20 @@ export function AcpChatPanel({
       accepts: [DND_MIME.filePath],
       capture: true,
       onDrop({ mode, items }) {
-        if (!inputEnabled || mode !== "paste") return;
-        const paths = items
-          .filter((i) => i.mime === DND_MIME.filePath)
-          .map((i) => i.value);
-        if (!paths.length) return;
+        const paths = fileDropPaths({ mode, items, inputEnabled });
+        if (!paths) return;
         stageAttachments(paths.map(toAttachment));
+        // Attaching is half the gesture — the next thing the user does is say
+        // something about the file, so hand them the caret. After the frame
+        // that paints the new chip, because the drag left focus on whatever
+        // the drop started from, and at the end of the existing draft: a drop
+        // adds no text of its own, so there is nothing to land behind.
+        requestAnimationFrame(() => {
+          const el = inputRef.current;
+          if (!el) return;
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+        });
         return true; // handled — host preventDefault + stopPropagation
       },
     });
