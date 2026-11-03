@@ -241,9 +241,58 @@
 }
 
 .acp-chat__message-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 10px;
   border-radius: var(--silo-radius-md);
   background: var(--silo-color-bg-active);
+}
+
+/* A long prompt — a pasted log, a spec — is clipped to a dozen lines with a
+   Show more under it (see `prompt-collapse.ts`). The cap is on this wrapper
+   rather than the text so the attachment chips are clipped with it, and the
+   measured box inside keeps its natural height for the comparison that
+   decides whether the toggle appears at all.
+
+   `data-clip` is set only on a prompt long enough to be worth measuring, so
+   nothing short can ever be silently truncated by this rule; `data-fade`
+   waits for the measurement, so a prompt that turned out to fit doesn't get a
+   gradient over its last line. The cap is in `em` — a multiple of
+   `.acp-chat__text`'s own line height — so it tracks `uiFontSize` instead of
+   pinning a pixel height. Keep the line count in step with
+   `PROMPT_COLLAPSE_MAX_LINES`. */
+.acp-chat__message-clip[data-clip] {
+  max-height: calc(12 * 1.5em);
+  overflow: hidden;
+}
+
+/* Fade the clipped edge so the cut reads as "there is more" rather than as a
+   prompt that ends mid-sentence. A mask, not a gradient painted in the
+   bubble's colour: it fades to whatever is behind it, so it needs no
+   theme-aware colour of its own. */
+.acp-chat__message-clip[data-fade] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 2.5em), transparent);
+}
+
+/* Quiet text toggle, matching the "N more, expand to see them all" control a
+   folded group uses — this is chrome inside the bubble, not something the
+   user wrote. */
+.acp-chat__message-expand {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.acp-chat__message-expand:hover,
+.acp-chat__message-expand:focus-visible {
+  color: var(--silo-color-accent);
 }
 
 /* Hover-only time + copy row (Dave's reference screenshot) — sits below the

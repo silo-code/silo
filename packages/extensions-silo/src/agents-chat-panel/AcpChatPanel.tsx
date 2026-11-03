@@ -263,6 +263,7 @@ import {
   typeCustomAnswer,
 } from "./question-tabs";
 import { CopyButton } from "./CopyButton";
+import { PromptBubble } from "./PromptBubble";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import {
   ChatLinkSpan,
@@ -860,25 +861,14 @@ function renderTranscriptEntry(
             asterisks must stay their asterisks. A user turn's text and
             attachments sit in their own bubble so the hover-only meta row
             below (time + copy) can sit outside the bubble's background,
-            matching Dave's reference screenshot. */}
+            matching Dave's reference screenshot. The bubble also owns
+            collapsing a long prompt (see `PromptBubble`). */}
         {entry.role === "user" ? (
-          <div className="acp-chat__message-bubble">
-            <div className="acp-chat__text">
-              <LinkifiedText text={entry.text} />
-            </div>
-            {entry.attachments && entry.attachments.length > 0 ? (
-              <div className="acp-chat__attachments">
-                {entry.attachments.map((name, i) => (
-                  <span
-                    key={`${entry.key}-att-${i}`}
-                    className="acp-chat__chip"
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <PromptBubble
+            entryKey={entry.key}
+            text={entry.text}
+            attachments={entry.attachments}
+          />
         ) : (
           <TranscriptMarkdown text={entry.text} />
         )}
