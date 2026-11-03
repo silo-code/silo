@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.80.0](https://github.com/silo-code/silo/compare/silo-v0.79.0...silo-v0.80.0) (2026-11-03)
+
+
+### Features
+
+* **agents-chat-panel:** collapse a long user prompt behind Show more ([#661](https://github.com/silo-code/silo/issues/661)) ([21da1f1](https://github.com/silo-code/silo/commit/21da1f14c854fb8b96192bd354134b4de8955baa))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** focus the composer after a file drop ([#663](https://github.com/silo-code/silo/issues/663)) ([e887f4b](https://github.com/silo-code/silo/commit/e887f4b3f48225ce927192ae69de10451f267d02))
+* **agents-chat-panel:** unblock the prompt bubble's copy row and sharpen the Prompt Rail ([#664](https://github.com/silo-code/silo/issues/664)) ([f29f775](https://github.com/silo-code/silo/commit/f29f775a2db2b8fab44f3512eae79561a20fed4a))
+
 ## [0.79.0](https://github.com/silo-code/silo/compare/silo-v0.78.2...silo-v0.79.0) (2026-10-27)
 
 
