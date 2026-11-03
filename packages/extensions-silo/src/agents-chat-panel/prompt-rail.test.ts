@@ -172,9 +172,25 @@ describe("tickEmphasis", () => {
   });
 
   it("tapers across the focus span", () => {
-    expect(tickEmphasis(5, 4)).toBe(0.75);
-    expect(tickEmphasis(6, 4)).toBe(0.5);
-    expect(tickEmphasis(7, 4)).toBe(0.25);
+    expect(tickEmphasis(5, 4)).toBe(0.75 ** 4);
+    expect(tickEmphasis(6, 4)).toBe(0.0625);
+    expect(tickEmphasis(7, 4)).toBe(0.25 ** 4);
+  });
+
+  // The property that makes the rail a lens rather than a cone: a linear
+  // taper drops by the same amount at every step, which is what drew the
+  // straight-edged triangle this replaced.
+  it("spends most of the drop on the nearest neighbour", () => {
+    const e = [0, 1, 2, 3].map((d) => tickEmphasis(4 + d, 4));
+    const drops = [e[0]! - e[1]!, e[1]! - e[2]!, e[2]! - e[3]!];
+    expect(drops[0]).toBeGreaterThan(drops[1]!);
+    expect(drops[1]).toBeGreaterThan(drops[2]!);
+  });
+
+  // The hovered dash has to be unmistakably the selected one — it was only a
+  // quarter longer than its neighbour when the taper was linear.
+  it("leaves the hovered tick at least triple its neighbour", () => {
+    expect(tickEmphasis(4, 4)).toBeGreaterThan(3 * tickEmphasis(5, 4));
   });
 
   it("leaves ticks beyond the span untouched", () => {
@@ -187,7 +203,7 @@ describe("tickEmphasis", () => {
   });
 
   it("honours a custom span", () => {
-    expect(tickEmphasis(5, 4, 1)).toBe(0.5);
+    expect(tickEmphasis(5, 4, 1)).toBe(0.0625);
     expect(tickEmphasis(6, 4, 1)).toBe(0);
   });
 });

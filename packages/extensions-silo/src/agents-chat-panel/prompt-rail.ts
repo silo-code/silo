@@ -17,6 +17,13 @@ export const PROMPT_RAIL_PITCH_PX = 10;
 /** How many dashes either side of the hovered one react to it. */
 export const PROMPT_RAIL_FOCUS_SPAN = 3;
 
+/**
+ * How sharply emphasis falls away from the hovered dash. Above 1 the falloff
+ * is convex — steepest at the cursor, flattening into the tail — which is what
+ * separates a lens from a cone. See {@link tickEmphasis}.
+ */
+export const PROMPT_RAIL_FOCUS_FALLOFF = 4;
+
 /** How much of a prompt the preview card shows. */
 export const PROMPT_RAIL_PREVIEW_CHARS = 280;
 
@@ -108,6 +115,14 @@ export function tickAtY(input: {
  * Fisheye falloff — 1 under the cursor, tapering to 0 at the edge of the
  * focus span. With no hovered tick every dash scores 0, which is the resting
  * form, so the component needs no separate idle branch.
+ *
+ * The taper is raised to {@link PROMPT_RAIL_FOCUS_FALLOFF} rather than left
+ * linear. Linear spaces the dashes evenly, which draws a cone with straight
+ * edges and leaves the hovered dash only a quarter longer than the one beside
+ * it — the selected prompt doesn't read as selected. The exponent spends two
+ * thirds of the drop on the first neighbour and all but flattens by the third,
+ * so the cursor sits under a lone spike with the rail curving away beneath
+ * it.
  */
 export function tickEmphasis(
   index: number,
@@ -117,7 +132,7 @@ export function tickEmphasis(
   if (hovered === null) return 0;
   const d = Math.abs(index - hovered);
   if (d > span) return 0;
-  return 1 - d / (span + 1);
+  return (1 - d / (span + 1)) ** PROMPT_RAIL_FOCUS_FALLOFF;
 }
 
 /**
