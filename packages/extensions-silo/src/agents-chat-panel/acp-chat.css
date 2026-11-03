@@ -59,6 +59,12 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* The Prompt Rail's hit strip, declared here rather than inline on the rail
+     because two other rules have to agree with it: the rail itself, and the
+     margin that keeps user bubbles out from under it. The bug those two
+     disagreeing produced is documented on that margin. */
+  --acp-rail-inset: 12px;
+  --acp-rail-width: 16px;
 }
 
 .acp-chat__scroller {
@@ -76,7 +82,9 @@
   /* Bottom is bumped above the horizontal 14px (Dave's call) — more breathing
      room between the last line of transcript and the composer's top
      divider than the sides get. */
-  padding: 12px 14px 24px;
+  --acp-scroller-pad-x: 14px;
+
+  padding: 12px var(--acp-scroller-pad-x) 24px;
 }
 
 /* --- prompt rail --------------------------------------------------------- */
@@ -86,22 +94,24 @@
    the cursor. Geometry comes from `prompt-rail.ts` as inline `top` / `width` /
    `opacity` — only the resting look and the easing are here.
 
-   Overlaps the transcript rather than reserving a gutter (Dave's call). The
-   scroller's own 14px right padding means that in practice it only reaches the
-   outer edge of agent markdown; the user bubble is right-aligned and stops at
-   that padding. */
+   Overlaps agent markdown rather than reserving a gutter (Dave's call), and is
+   a sibling of the scroller rather than a child of it, so it owns the pointer
+   wherever it lies on top of the transcript. User bubbles are held clear of it
+   for exactly that reason — see `.acp-chat__message[data-role="user"]`. */
 
 .acp-chat__prompt-rail {
   position: absolute;
   top: 0;
   /* Clear of the scroller's scrollbar (10px, `theme.css`) plus a hair, so the
      dashes never sit on the thumb and neither one steals the other's drag. */
-  right: 12px;
+  right: var(--acp-rail-inset);
   bottom: 0;
-  /* The hover target. A dash at full emphasis is longer than this and spills
-     left over the transcript, which is the intent — the target stays the
-     narrow strip at the edge so crossing the rail is deliberate. */
-  width: 28px;
+  /* The hover target, and the only part of the rail that costs layout: user
+     bubbles are indented to clear it, so every pixel here is a pixel off the
+     width of every prompt. Sized to end just past a resting dash (3px + 18px)
+     rather than to cover an emphasised one — a dash at full emphasis spills
+     well left of this and over the transcript, which is the intent. */
+  width: var(--acp-rail-width);
   z-index: 2;
   cursor: pointer;
   /* `--silo-color-text-hi`, not the muted `--silo-color-text-lo` a resting
@@ -235,9 +245,25 @@
   font-size: calc(var(--silo-font-size-base) + 2px);
 }
 
+/* Right-aligned, and inset far enough that the bubble — and the hover-only
+   time + copy row under it — never sits beneath the Prompt Rail. The rail is a
+   sibling overlay, so anything it covers loses the pointer: with the bubble
+   flush to the scroller's padding the rail lay over its last ~26px, and
+   reaching for the copy button put the cursor on the rail instead of the
+   message, which turned `:hover` off and took the whole row away before it
+   could be clicked. Derived from the rail's own geometry rather than guessed,
+   so the clearance can't drift if the strip moves or widens; the extra 2px is
+   a hair of margin for error. Note that it clears the *hit strip*, not the
+   dashes — a dash at full emphasis reaches past this and over the bubble on
+   purpose. Shrinking the indent therefore means narrowing the strip, not
+   moving the bubble closer to it. */
 .acp-chat__message[data-role="user"] {
   align-self: flex-end;
   max-width: 85%;
+  margin-right: calc(
+    var(--acp-rail-inset) + var(--acp-rail-width) - var(--acp-scroller-pad-x) +
+      2px
+  );
 }
 
 .acp-chat__message-bubble {
