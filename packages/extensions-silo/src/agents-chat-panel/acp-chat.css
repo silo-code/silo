@@ -64,7 +64,7 @@
      margin that keeps user bubbles out from under it. The bug those two
      disagreeing produced is documented on that margin. */
   --acp-rail-inset: 12px;
-  --acp-rail-width: 28px;
+  --acp-rail-width: 16px;
 }
 
 .acp-chat__scroller {
@@ -106,9 +106,11 @@
      dashes never sit on the thumb and neither one steals the other's drag. */
   right: var(--acp-rail-inset);
   bottom: 0;
-  /* The hover target. A dash at full emphasis is longer than this and spills
-     left over the transcript, which is the intent — the target stays the
-     narrow strip at the edge so crossing the rail is deliberate. */
+  /* The hover target, and the only part of the rail that costs layout: user
+     bubbles are indented to clear it, so every pixel here is a pixel off the
+     width of every prompt. Sized to end just past a resting dash (3px + 18px)
+     rather than to cover an emphasised one — a dash at full emphasis spills
+     well left of this and over the transcript, which is the intent. */
   width: var(--acp-rail-width);
   z-index: 2;
   cursor: pointer;
@@ -251,7 +253,10 @@
    message, which turned `:hover` off and took the whole row away before it
    could be clicked. Derived from the rail's own geometry rather than guessed,
    so the clearance can't drift if the strip moves or widens; the extra 2px is
-   a hair of margin for error. */
+   a hair of margin for error. Note that it clears the *hit strip*, not the
+   dashes — a dash at full emphasis reaches past this and over the bubble on
+   purpose. Shrinking the indent therefore means narrowing the strip, not
+   moving the bubble closer to it. */
 .acp-chat__message[data-role="user"] {
   align-self: flex-end;
   max-width: 85%;
