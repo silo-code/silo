@@ -844,6 +844,17 @@ _Avoid_: "minimap" (it is positional in the prompt sequence, not a scaled
 picture of the content); "scrollbar" (the scroller has its own, and the rail
 does not track the viewport); "timeline".
 
+**Prompt Bubble** (`PromptBubble.tsx`, `prompt-collapse.ts`) — how a user
+prompt is drawn in a **Transcript**: the text and its attachment chips on
+their own background, with the hover-only time-and-copy row outside it. A
+prompt longer than `PROMPT_COLLAPSE_MAX_LINES` is **collapsed** — clipped to
+that many lines, its cut edge faded, with a **Show more** / **Show less**
+toggle under it — so a pasted log or spec doesn't bury the reply it asked
+for. Collapsed is the resting state and is per bubble: expanding one says
+nothing about the next, and nothing is persisted.
+_Avoid_: "truncated" (nothing is dropped — the full prompt is one click
+away); "folded" (that is what a **Tool call group** does to sibling rows).
+
 **Tool call group** — a run of `TOOL_GROUP_THRESHOLD` (6) or more consecutive
 tool-call rows in a **Transcript** with no diff-producing call among them,
 folded under one collapsible header (`ToolGroupEntry`, produced by
