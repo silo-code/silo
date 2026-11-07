@@ -71,17 +71,20 @@ They are listed in **Settings → Extensions** under the Silo publisher (flip
 individually; none can be uninstalled (they ship inside the app, so there's
 nothing on disk to remove).
 
-| Extension        | What it adds                                                                           |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| Navigator        | Navigator side panel — the container its views render in                               |
-| Workspaces       | The Workspaces view in the Navigator, plus workspace commands and status               |
-| Terminal         | Terminal tabs in the center dock                                                       |
-| File Explorer    | Files side panel with a file tree                                                      |
-| File Search      | Search side panel for cross-file content search                                        |
-| Git              | Git side panel — staged/unstaged changes, commit, branch switcher                      |
-| Markdown Preview | Read-only editor for `.md` files with rendered output                                  |
-| Image Viewer     | Read-only viewer for common image formats                                              |
-| Themes           | Themes side panel and the bundled presets (Tokyo Night, Solarized Light, Gruvbox Dark) |
+| Extension         | What it adds                                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| Navigator         | Navigator side panel — the container its views render in                                                |
+| Workspaces        | The Workspaces view in the Navigator, groups, workspace commands, and the status-bar switcher           |
+| Agents Chat Panel | The [Chat panel](/guide/chat) — a native conversation with Claude Code and other agents                 |
+| Agents            | The Agents view in the Navigator, status rows under workspaces, tab badges, and finished/blocked sounds |
+| Terminal          | Terminal tabs in the center dock                                                                        |
+| File Explorer     | Files side panel with a file tree                                                                       |
+| File Search       | Search side panel for cross-file content search                                                         |
+| Git               | Git side panel — changes, commit, branch switcher, worktrees — and the commit history drill-down        |
+| Markdown Preview  | Read-only editor for `.md` files with rendered output                                                   |
+| Image Viewer      | Read-only viewer for common image formats                                                               |
+| Output            | The Output panel — logs from the app and from extensions                                                |
+| Themes            | Themes side panel and the bundled presets (Tokyo Night, Solarized Light, Gruvbox Dark)                  |
 
 ## Official community extensions
 
