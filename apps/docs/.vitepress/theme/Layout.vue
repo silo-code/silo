@@ -258,14 +258,75 @@ watch(isHome, (home) => {
   }
 });
 
+// ── Click-to-zoom screenshots ──────────────────────────────────────────────
+//
+// Opt-in, not blanket: only an <img class="zoomable"> participates, so
+// diagrams, badges, and the design-system demos are untouched. Screenshots
+// are composited onto the wallpaper at a fixed width and shown smaller than
+// that in the page, so the zoom is what makes the UI inside them legible.
+//
+// Re-run on navigation — VitePress swaps page content without remounting the
+// layout, so a zoom attached on one page would not find the next page's
+// images.
+/** @type {null | import("medium-zoom").Zoom} */
+let zoom = null;
+
+async function attachZoom() {
+  if (typeof window === "undefined") return;
+  await nextTick();
+  const targets = document.querySelectorAll(".vp-doc img.zoomable");
+  if (targets.length === 0) {
+    zoom?.detach();
+    return;
+  }
+  const { default: mediumZoom } = await import("medium-zoom");
+  zoom?.detach();
+  zoom = mediumZoom(targets, {
+    // Matches the docs' forced-dark background so the page recedes behind the
+    // screenshot instead of flashing white.
+    background: "rgba(17, 18, 15, 0.92)",
+    margin: 24,
+  });
+}
+
+onMounted(() => {
+  if (!isHome.value) void attachZoom();
+});
+
+watch(
+  () => route.path,
+  () => {
+    if (isHome.value) {
+      zoom?.detach();
+      zoom = null;
+      return;
+    }
+    void attachZoom();
+  },
+);
+
 onBeforeUnmount(() => {
   teardownHome();
   observer?.disconnect();
   closeMenu();
   menuEl?.remove();
   menuEl = null;
+  zoom?.detach();
+  zoom = null;
 });
 </script>
+
+<style>
+/* The zoom target is the screenshot itself; a pointer makes that discoverable
+   without adding chrome around the image. */
+.vp-doc img.zoomable {
+  cursor: zoom-in;
+}
+.medium-zoom-overlay,
+.medium-zoom-image--opened {
+  z-index: 60;
+}
+</style>
 
 <template>
   <div v-if="isHome" class="silo-marketing-home">

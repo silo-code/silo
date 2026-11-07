@@ -246,12 +246,21 @@ export default withMermaid(
           {
             text: "Using Silo",
             items: [
+              { text: "Chat with Claude Code", link: "/guide/chat" },
               { text: "Workspaces", link: "/guide/workspaces" },
-              { text: "Using agents", link: "/guide/agent-sessions" },
-              { text: "Side panels", link: "/guide/panels" },
+              { text: "Layout & panels", link: "/guide/panels" },
+              {
+                text: "Working across many projects",
+                link: "/guide/many-projects",
+              },
+              { text: "Terminal agents", link: "/guide/agent-sessions" },
+              {
+                text: "Keyboard shortcuts",
+                link: "/guide/keyboard-shortcuts",
+              },
               { text: "Extensions", link: "/guide/extensions" },
-              { text: "Process model", link: "/guide/process-model" },
               { text: "The `silo` command", link: "/guide/cli" },
+              { text: "Process model", link: "/guide/process-model" },
               { text: "Release channels", link: "/guide/release-channels" },
             ],
           },

@@ -1,25 +1,34 @@
-# Using agents with Silo
+# Terminal agents
 
 Silo works with the coding agents you already use — Claude Code, Codex,
 Cursor Agent, GitHub Copilot CLI, Grok, pi, OMP, and OpenCode — and gives you
 two ways to run them.
 
+::: tip Start with the Chat panel
+If you use Claude Code, the recommended way to run it is the **Chat panel** —
+see [Chat with Claude Code](/guide/chat). This page is about the other way:
+running an agent's own CLI in a Silo terminal, and the per-agent details and
+compatibility tables that apply to both.
+:::
+
 ## Two ways to run an agent
 
-If you already like running an agent's own CLI, keep doing exactly that —
-Silo treats it as a first-class citizen. Open a terminal, type `claude` (or
-`codex`, `cursor-agent`, …) the way you always have, and Silo quietly tracks
-it alongside everything else: it knows which agent is running, shows you when
-it's working, and can bring back the exact same session after you restart.
-Nothing about your workflow changes.
+**In a terminal.** Open a terminal, type `claude` (or `codex`,
+`cursor-agent`, …) the way you always have, and Silo quietly tracks it
+alongside everything else: it knows which agent is running, shows you when
+it's working or waiting on you, and can bring back the exact same session
+after you restart. Nothing about your workflow changes, and every agent on the
+list works this way.
 
-If you want something more immersive, open that same agent in a **Chat
-panel** instead. Rather than scrolling past raw terminal text, you get the
-conversation rendered natively inside Silo — its replies, the files it's
-touching, and its plan, all as part of the app's own UI.
+**In a Chat panel.** Open that same agent as a native conversation inside
+Silo. Instead of terminal text you get its replies, the files it's touching,
+its diffs, plans, and questions rendered as part of the app's own UI. Claude
+Code is the best-supported agent here; Codex, Cursor Agent, Copilot CLI,
+OpenCode, and pi also connect, with the differences listed under
+[Compatibility](#compatibility).
 
-Same agent, same work, either way — pick whichever fits how you work. You can
-even run one agent both ways at once.
+Same agent, same work, either way — and you can run one agent both ways at
+once.
 
 ## Supported agents
 
@@ -44,8 +53,8 @@ agent.
 
 - **Silo knows which agent is running** — no setup needed, it recognizes the
   CLI the moment it starts.
-- **It shows you when an agent is busy or waiting on you**, right on the
-  terminal's tab, if you install a small monitoring extension (see below).
+- **It shows you when an agent is busy or waiting on you**, on the
+  terminal's tab and under the workspace in the Navigator.
 - **It can bring back your exact session after a restart** — same
   conversation, same history — once you turn that on for the agent (see
   below).
@@ -103,11 +112,11 @@ is the agent's own CLI, exactly as if you had typed the command.
 
 ### Seeing terminal activity
 
-Drawing activity indicators — the dots on tabs and workspace rows — is left
-to an extension on purpose, so you can pick the one that fits how you work,
-or build your own. **`agent-monitor`** is the ready-made option; install it
-from **Browse** (or [extensions.getsilo.dev](https://extensions.getsilo.dev)).
-Without it, Silo still tracks your agents — it just doesn't display them.
+The bundled **Agents** extension draws the activity indicators — the dot on
+a terminal tab, the status row under a workspace in the Navigator, and the
+**Agents** view that lists every session by state. It works for terminal
+agents and Chat sessions alike, with nothing to install. Sounds for
+"finished" and "needs an answer" are on **Settings → Agents → Behavior**.
 
 ### Turning on exact resume
 
