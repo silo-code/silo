@@ -567,6 +567,44 @@ describe("sharedColumnWidthsEnabled in the index", () => {
   });
 });
 
+describe("sidePanelTabDisplay in the index (ADR 0058)", () => {
+  it("is omitted entirely while the user has changed nothing", () => {
+    // An untouched install writes no key, so an upgrade adds nothing to the
+    // blob and the absent-field default stays the one source of the mode.
+    expect(
+      buildIndex({ workspaceOrder: [], activeWorkspaceId: null })
+        .sidePanelTabDisplay,
+    ).toBeUndefined();
+    expect(
+      buildIndex({
+        workspaceOrder: [],
+        activeWorkspaceId: null,
+        sidePanelTabDisplay: {},
+      }).sidePanelTabDisplay,
+    ).toBeUndefined();
+  });
+
+  it("round-trips the modes the user did set", () => {
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      sidePanelTabDisplay: { git: "icon", files: "both" },
+    });
+    expect(index.sidePanelTabDisplay).toEqual({ git: "icon", files: "both" });
+  });
+
+  it("copies rather than aliases the live map", () => {
+    const live: Record<string, "icon" | "title" | "both"> = { git: "icon" };
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      sidePanelTabDisplay: live,
+    });
+    live.files = "both";
+    expect(index.sidePanelTabDisplay).toEqual({ git: "icon" });
+  });
+});
+
 describe("loadAgentProfiles (RFC 0033 R2)", () => {
   it("returns [] for an absent or non-array value", () => {
     expect(loadAgentProfiles(undefined)).toEqual([]);

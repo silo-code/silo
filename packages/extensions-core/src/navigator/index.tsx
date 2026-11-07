@@ -1,3 +1,4 @@
+import { Compass } from "@phosphor-icons/react";
 import type { Extension } from "@silo-code/sdk";
 import { navigatorViewRegistry } from "@silo-code/extension-host/internal";
 import { NavigatorPanel } from "./NavigatorPanel";
@@ -40,6 +41,7 @@ export const extension: Extension<NavigatorExtensionAPI> = {
       id: NAVIGATOR_PANEL_ID,
       location: "left",
       title: "Navigator",
+      icon: <Compass size="1em" weight="duotone" />,
       // Inject ctx so the panel reaches storage/ui through the public
       // primitives, not host getters (see silo.file-explorer, 6662dcc).
       component: () => <NavigatorPanel ctx={ctx} />,

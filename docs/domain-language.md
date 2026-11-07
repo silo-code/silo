@@ -93,6 +93,18 @@ rule.
 _Avoid_: Sandbox (nothing is isolated at runtime — this is a build-time and
 lint-time boundary); "the rules"
 
+**Two-Tone Icon**:
+Silo's house icon style: one glyph drawn in `currentColor` at two opacities, so
+it themes from the text color it inherits and needs no per-theme asset. Two
+recipes produce it — a Phosphor icon at `weight="duotone"` (what the Navigator
+view list, the Workspaces surfaces, and Side Panel tab icons use), or a
+hand-authored inline SVG layering a solid glyph over a low-opacity plate (what
+the status bar uses where no Phosphor glyph fits). Always sized in `em` so it
+tracks `uiFontSize`. Distinct from an **Activity** glyph, which is host-owned
+busy/ready/warn/error chrome (ADR 0030) rather than identity artwork.
+_Avoid_: Duotone (Phosphor's weight name — one of the two recipes, not the
+style), icon pair, two-color icon (nothing carries a second hue)
+
 ### Workspaces
 
 **Workspace**:
@@ -439,6 +451,15 @@ by default. Independent of Shared Side Panel Layout — a workspace that splits 
 dock into columns needs it far wider than one showing a single column, so the
 arrangement and the sizing are shared separately.
 _Avoid_: Global panel widths (the layout setting is the "global" one), dock size
+
+**Side Panel Tab Display**:
+Whether one Side Panel's tab shows its icon, its title, or both. Chosen per tab
+from the tab's context menu, and **global**: the choice holds in every
+workspace. Title-only by default, and always title-only for a Side Panel that
+contributed no icon. Unlike Shared Side Panel Layout and Shared Side Panel
+Widths it has no per-workspace mode to opt out of — a tab's appearance is a
+reading preference, not part of a workspace's arrangement (ADR 0058).
+_Avoid_: Tab mode, icon mode, compact tabs, tab label style
 
 **Peek**:
 A transient overlay that reveals a collapsed side panel while the cursor sits

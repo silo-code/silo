@@ -15,6 +15,7 @@ import {
   setSideDockSizes,
   setSidePanelSlot,
   splitSideDock,
+  setSidePanelTabDisplay,
 } from "./store";
 
 describe("side-panel visibility", () => {
@@ -48,6 +49,37 @@ describe("side-panel visibility", () => {
     toggleSidePanelVisibility("a");
     toggleSidePanelVisibility("a");
     expect(store.sidePanelVisibility).toEqual({});
+  });
+});
+
+describe("setSidePanelTabDisplay (ADR 0058)", () => {
+  beforeEach(() => {
+    store.sidePanelTabDisplay = {};
+  });
+
+  it("stores a non-default mode", () => {
+    setSidePanelTabDisplay("git", "icon");
+    expect(store.sidePanelTabDisplay.git).toBe("icon");
+  });
+
+  it("overwrites an existing mode", () => {
+    setSidePanelTabDisplay("git", "icon");
+    setSidePanelTabDisplay("git", "both");
+    expect(store.sidePanelTabDisplay.git).toBe("both");
+  });
+
+  it("deletes the key when set back to the default", () => {
+    // Keeps the persisted map to just what the user changed, which is what
+    // lets buildIndex omit it while untouched.
+    setSidePanelTabDisplay("git", "icon");
+    setSidePanelTabDisplay("git", "title");
+    expect("git" in store.sidePanelTabDisplay).toBe(false);
+  });
+
+  it("keeps each panel's mode independent", () => {
+    setSidePanelTabDisplay("git", "icon");
+    setSidePanelTabDisplay("files", "both");
+    expect(store.sidePanelTabDisplay).toEqual({ git: "icon", files: "both" });
   });
 });
 

@@ -14,8 +14,9 @@ function panel(
   id: string,
   title: string,
   location: "left" | "right",
+  icon?: SidePanel["icon"],
 ): SidePanel {
-  return { id, title, location, component: () => null };
+  return { id, title, location, component: () => null, icon };
 }
 
 describe("sidePanelVisibilityItems", () => {
@@ -55,6 +56,13 @@ describe("sidePanelVisibilityItems", () => {
     const rows = sidePanelVisibilityItems().slice(1) as MenuItem[];
     rows.find((r) => r.label === "Zed")?.run?.();
     expect(store.sidePanelVisibility.zed).toBe(false);
+  });
+
+  it("carries each panel's own icon, and nothing for an icon-less one", () => {
+    subs.push(sidePanelRegistry.register(panel("mid", "Mid", "left", "glyph")));
+    const rows = sidePanelVisibilityItems().slice(1) as MenuItem[];
+    expect(rows.find((r) => r.label === "Mid")?.icon).toBe("glyph");
+    expect(rows.find((r) => r.label === "Alpha")?.icon).toBeUndefined();
   });
 });
 

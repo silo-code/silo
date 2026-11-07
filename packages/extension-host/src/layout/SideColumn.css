@@ -40,6 +40,11 @@
 }
 
 .panel-header.tabs .tab {
+  /* A flex row so the optional icon and the label sit on one baseline. The tab
+     was a bare text node before icons existed (RFC 0065). */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 100%;
   padding: 0 14px;
   border: none;
@@ -52,6 +57,48 @@
   cursor: pointer;
   user-select: none;
   position: relative;
+}
+
+/* The tab's identity glyph (`SidePanel.icon`). Sized a touch above the 12px
+   label so a duotone glyph reads at all, and in `em` so it tracks `uiFontSize`
+   with the label beside it.
+
+   The slot forces the rendered size rather than trusting the extension: `icon`
+   is a ReactNode, so a panel is free to hand us `size={19}` or an SVG with its
+   own width/height, and one oversized glyph would push the whole strip taller
+   (ADR 0058). Same reason `.dvi-tab-icon` pins its children in CenterDock.css. */
+.panel-header.tabs .tab .tab-icon {
+  --silo-internal-side-tab-icon-size: 1.25em;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-header.tabs .tab .tab-icon svg,
+.panel-header.tabs .tab .tab-icon img {
+  display: block;
+  width: var(--silo-internal-side-tab-icon-size);
+  height: var(--silo-internal-side-tab-icon-size);
+}
+
+/* With the label gone the horizontal padding is all that sets the tab's width,
+   so even it out into a square-ish target instead of a wide, mostly-empty one. */
+.panel-header.tabs .tab.tab-icon-only {
+  padding: 0 10px;
+}
+
+/* An icon-only tab is wrapped in the SDK `Tooltip`, which renders an unstyled
+   `.silo-tooltip-host` span around its trigger — so *that* span becomes the
+   bar's flex item and the tab's `height: 100%` would resolve against an inline
+   box instead of the bar. Hand the wrapper the layout the tab expects. Same
+   workaround as `.tree-row > .silo-tooltip-host` and
+   `.acp-chat__controls > .silo-tooltip-host`. */
+.panel-header.tabs > .silo-tooltip-host {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  height: 100%;
 }
 
 .panel-header.tabs .tab:hover {

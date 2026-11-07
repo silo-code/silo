@@ -182,6 +182,37 @@ describe("side-panel visibility is per-workspace", () => {
   });
 });
 
+describe("side-panel tab display is global, not per-workspace (ADR 0058)", () => {
+  beforeEach(() => {
+    store.sidePanelTabDisplay = {};
+  });
+
+  it("survives a workspace switch unchanged", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+
+    store.sidePanelTabDisplay = { git: "icon" };
+    activateWorkspace("w2");
+    expect(store.sidePanelTabDisplay).toEqual({ git: "icon" });
+
+    // A change made while w2 is active is equally what w sees on return —
+    // this is the whole point of keeping the map out of SharedPanelState.
+    store.sidePanelTabDisplay = { git: "icon", files: "both" };
+    activateWorkspace("w");
+    expect(store.sidePanelTabDisplay).toEqual({ git: "icon", files: "both" });
+  });
+
+  it("is never captured onto or restored from a workspace record", () => {
+    store.sidePanelTabDisplay = { git: "icon" };
+    savePanelStateToWorkspace("w");
+    expect(store.workspaces.w).not.toHaveProperty("sidePanelTabDisplay");
+
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.sidePanelTabDisplay).toEqual({ git: "icon" });
+  });
+});
+
 describe("the two side-column layout modes are per-workspace", () => {
   beforeEach(() => {
     store.leftPanelCollapsed = false;

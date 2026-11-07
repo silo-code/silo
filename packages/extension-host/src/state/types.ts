@@ -8,6 +8,7 @@ export type {
   EditorRecord,
   DockPanelRecord,
   SidePanelSlot,
+  SidePanelTabDisplay,
   Workspace,
   ThemeBase,
   ThemeVars,
@@ -24,6 +25,7 @@ import type {
   EditorRecord,
   DockPanelRecord,
   AgentActivity,
+  SidePanelTabDisplay,
 } from "@silo-code/sdk";
 
 /**
@@ -483,6 +485,19 @@ export interface AppState extends SharedPanelState {
    */
   smallScreenModeEnabled: boolean;
   smallScreenThresholdPx: number;
+  /**
+   * Per-tab display mode for SideDock tabs (icon / title / both), keyed by
+   * side panel id. An absent key means the default, title-only — so this stays
+   * empty until a user changes something.
+   *
+   * Global (not per-workspace), persisted in the global index like
+   * `uiFontSize`: a change made in one workspace is what every workspace
+   * reads. That is why it is **not** part of `SharedPanelState` above and
+   * never passes through `capturePanelState`/`applyPanelState`. ADR 0058
+   * records why this diverges from the per-workspace-plus-opt-in-flag shape
+   * side panel *layout* uses (ADR 0035).
+   */
+  sidePanelTabDisplay: Record<string, SidePanelTabDisplay>;
   /**
    * True while small-screen mode is actually applying — the feature is on *and*
    * the window is inside the small band. Ephemeral (re-derived from the window

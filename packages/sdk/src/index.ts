@@ -35,6 +35,7 @@ export type {
   Keybinding,
   SidePanelProps,
   SidePanel,
+  SidePanelTabDisplay,
   NavigatorView,
   NavigatorViewProps,
   DockPanelKind,

@@ -97,3 +97,4 @@ A small, obvious choice needs neither.
 | [0055](./0055-session-discovery.md)                           | Session Discovery: `/resume` lists only same-cwd sessions from the live connection | 2026-09-21 | accepted |
 | [0056](./0056-vendor-meta-through-one-quarantine.md)          | A vendor `_meta` fact reaches the SDK through one quarantine module                | 2026-10-07 | accepted |
 | [0057](./0057-advertising-a-vendor-protocol-extension.md)     | Silo may advertise a vendor protocol extension, parsed through the same quarantine | 2026-10-08 | accepted |
+| [0058](./0058-side-panel-tab-display.md)                      | Side panel tab display is global, and its icon is a ReactNode                      | 2026-11-06 | accepted |

@@ -629,6 +629,35 @@ export interface SidePanel {
   location: "left" | "right";
   /** Title shown in the column's panel switcher. */
   title: string;
+  /**
+   * Optional identity artwork for this panel's SideDock tab.
+   *
+   * The house convention is a Phosphor icon at `weight="duotone" size="1em"`,
+   * which matches the two-tone glyphs used by the Navigator view list and the
+   * Workspaces surfaces. `em` sizing matters: it keeps the icon tracking the
+   * user's UI font size. A hand-authored inline SVG is fine when no Phosphor
+   * glyph fits — use `currentColor` so it themes with the tab, and layer it at
+   * two opacities to stay in the same visual family.
+   *
+   * Supplying an icon does not mean it is shown. The **user** picks per tab
+   * whether it renders the icon, the title, or both (see
+   * {@link SidePanelTabDisplay}), and the default is title-only — so always
+   * give this panel a meaningful {@link SidePanel.title} as well.
+   *
+   * @example
+   * ```tsx
+   * import { GitBranch } from "@phosphor-icons/react";
+   *
+   * ctx.registerSidePanel({
+   *   id: "git-explorer",
+   *   location: "right",
+   *   title: "Git",
+   *   icon: <GitBranch size="1em" weight="duotone" />,
+   *   component: GitPanel,
+   * });
+   * ```
+   */
+  icon?: React.ReactNode;
   /** The React component; receives {@link SidePanelProps}. */
   component: React.ComponentType<SidePanelProps>;
   /** Sort order within the side column. Defaults to 0. */
@@ -640,6 +669,22 @@ export interface SidePanel {
    */
   lazyMount?: boolean;
 }
+
+/**
+ * How a Side Panel's SideDock tab renders itself: the panel's
+ * {@link SidePanel.icon}, its {@link SidePanel.title}, or both.
+ *
+ * This is a **user** preference, not a contribution — it is chosen per tab from
+ * the tab's context menu and applies across every workspace. Extensions never
+ * set it; they only offer the icon the user may choose to show.
+ *
+ * A panel that registered no icon is always rendered as `"title"`, whatever
+ * value is stored for it.
+ *
+ * @category Registration
+ * @public
+ */
+export type SidePanelTabDisplay = "icon" | "title" | "both";
 
 /**
  * Props passed to a {@link NavigatorView} component.

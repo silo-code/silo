@@ -164,6 +164,9 @@ export function sidePanelVisibilityItems(): MenuEntry[] {
   )) {
     items.push({
       label: sp.title,
+      // The panel's own glyph, where it has one — the same artwork its tab can
+      // show, so the two surfaces name a panel the same way.
+      icon: sp.icon,
       checked: isSidePanelVisible(sp.id),
       run: () => toggleSidePanelVisibility(sp.id),
     });

@@ -41,6 +41,11 @@ doesn't repeat the reasoning, just the list.
       already covers every interactive element; if you must suppress the
       native outline on a base element, `outline: none` is enough — the
       shared rule still wins on focus.
+- [ ] Any icon you contribute — a side panel's tab `icon`, a Navigator view's —
+      is a Phosphor glyph at `weight="duotone"` and `size="1em"`, matching the
+      two-tone set the rest of Silo's chrome uses. A hand-authored inline SVG
+      is fine where no Phosphor glyph fits: draw it in `currentColor` and layer
+      it at two opacities. `em`, never px, so it tracks `uiFontSize`.
 
 ## Modal UI
 

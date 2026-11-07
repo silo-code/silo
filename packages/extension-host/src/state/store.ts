@@ -27,7 +27,8 @@ import {
   DEFAULT_GLOBAL_PANEL_LAYOUT,
   DEFAULT_SHARED_COLUMN_WIDTHS,
 } from "./types";
-import type { SideLocation } from "@silo-code/sdk";
+import type { SideLocation, SidePanelTabDisplay } from "@silo-code/sdk";
+import { DEFAULT_SIDE_PANEL_TAB_DISPLAY } from "./side-panel-tab-display";
 
 export const store = proxy<AppState>({
   workspaces: {},
@@ -50,6 +51,7 @@ export const store = proxy<AppState>({
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
   smallScreenModeEnabled: true,
+  sidePanelTabDisplay: {},
   smallScreenThresholdPx: DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
   smallScreenActive: false,
   inactiveModeCollapsed: null,
@@ -273,6 +275,25 @@ export function toggleSidePanelVisibility(panelId: string) {
     delete store.sidePanelVisibility[panelId];
   } else {
     store.sidePanelVisibility[panelId] = false;
+  }
+}
+
+/**
+ * Set one side panel tab's display mode. Global — every workspace reads this
+ * same map, so there is nothing to capture into the active workspace.
+ *
+ * Storing the default (`"title"`) deletes the key rather than writing it, which
+ * keeps the persisted map to just the tabs the user actually changed and lets
+ * `buildIndex` omit it entirely while untouched.
+ */
+export function setSidePanelTabDisplay(
+  panelId: string,
+  mode: SidePanelTabDisplay,
+) {
+  if (mode === DEFAULT_SIDE_PANEL_TAB_DISPLAY) {
+    delete store.sidePanelTabDisplay[panelId];
+  } else {
+    store.sidePanelTabDisplay[panelId] = mode;
   }
 }
 
