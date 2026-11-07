@@ -51,6 +51,7 @@ the published reference is exactly this surface — no more, no less.
 - [Keybinding](interfaces/Keybinding.md)
 - [SidePanelProps](interfaces/SidePanelProps.md)
 - [SidePanel](interfaces/SidePanel.md)
+- [SidePanelTabDisplay](type-aliases/SidePanelTabDisplay.md)
 - [NavigatorViewProps](interfaces/NavigatorViewProps.md)
 - [NavigatorView](interfaces/NavigatorView.md)
 - [DockPanelKind](interfaces/DockPanelKind.md)

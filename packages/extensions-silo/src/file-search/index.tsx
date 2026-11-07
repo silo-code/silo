@@ -1,3 +1,4 @@
+import { MagnifyingGlass } from "@phosphor-icons/react";
 import type { Extension } from "@silo-code/sdk";
 import { FileSearchPanel } from "./FileSearchPanel";
 import { requestSearch } from "./search-bus";
@@ -20,6 +21,7 @@ export const extension: Extension = {
       id: PANEL_ID,
       location: "right",
       title: "Search",
+      icon: <MagnifyingGlass size="1em" weight="duotone" />,
       // Inject ctx so the panel reaches workspaces/editors/search through the
       // public primitives, not host getters.
       component: ({ active, storage }) => (

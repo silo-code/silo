@@ -23,6 +23,7 @@ import {
 } from "./panel-state";
 import { setBackupDir, sweepEditorBackups } from "./editor-backups";
 import { replaceAgentProfiles } from "./agent-profiles";
+import { coerceTabDisplay } from "./side-panel-tab-display";
 import {
   buildIndex,
   cloneExtensionState,
@@ -197,6 +198,14 @@ export async function hydrate(configDir: string): Promise<void> {
     store.globalActiveSidePanelTabs = index.globalActiveSidePanelTabs
       ? { ...index.globalActiveSidePanelTabs }
       : {};
+    // Every value re-narrowed on the way in: the map is keyed by panel id and
+    // hand-editable, so one junk mode must not reach the tab strip (ADR 0058).
+    store.sidePanelTabDisplay = Object.fromEntries(
+      Object.entries(index.sidePanelTabDisplay ?? {}).map(([id, mode]) => [
+        id,
+        coerceTabDisplay(mode),
+      ]),
+    );
   }
 
   // One file per workspace. Invalid files are skipped (like the theme loader),
@@ -374,6 +383,7 @@ async function doPersist(): Promise<void> {
       globalActiveSidePanelTabs: store.globalActiveTabEnabled
         ? { ...store.activeSidePanelTabs }
         : store.globalActiveSidePanelTabs,
+      sidePanelTabDisplay: { ...store.sidePanelTabDisplay },
     }),
   );
   await indexStore.save();

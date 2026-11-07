@@ -1,3 +1,4 @@
+import { Palette } from "@phosphor-icons/react";
 import type { Extension, SidePanelProps } from "@silo-code/sdk";
 import { ThemeEditorPanel } from "./ThemeEditorPanel";
 import { ThemeStatusItem } from "./ThemeStatusItem";
@@ -25,6 +26,7 @@ export const extension: Extension = {
       id: "themes",
       location: "right",
       title: "Themes",
+      icon: <Palette size="1em" weight="duotone" />,
       component: (props: SidePanelProps) => (
         <ThemeEditorPanel
           active={props.active}

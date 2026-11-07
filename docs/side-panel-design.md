@@ -86,6 +86,13 @@ absolute token off app base, not off the pane.
 
 ## Layout chrome
 
+- **Tab icon.** The tab strip is host chrome, but its glyph comes from your
+  registration: `SidePanel.icon`, a Phosphor icon at `weight="duotone"`
+  `size="1em"` (the Two-Tone Icon style — see `docs/domain-language.md`). The
+  user picks per tab whether the tab shows the icon, the title, or both; the
+  default is title-only, and a panel with no icon is always title-only. You
+  don't style the slot — the host pins the rendered size — so don't try to
+  compensate with a wrapper. RFC 0065 / ADR 0058.
 - **Toolbar** (filter + actions): actions row **above** the filter, trailing-
   aligned (`justify-content: flex-end`), then `SearchInput`. Pad
   `8px 10px` (chrome tier — see the horizontal-inset table below),

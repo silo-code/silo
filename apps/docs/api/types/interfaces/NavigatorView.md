@@ -1,6 +1,6 @@
 # Interface: NavigatorView
 
-Defined in: [packages/sdk/src/types.ts:703](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L703)
+Defined in: [packages/sdk/src/types.ts:748](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L748)
 
 A view in the **Navigator** — the side panel you navigate the app from. The
 Navigator is a container: each registered view is one projection of "where
@@ -43,7 +43,7 @@ ctx.registerNavigatorView({
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:705](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L705)
+Defined in: [packages/sdk/src/types.ts:750](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L750)
 
 Unique id, conventionally `"<extension-id>.<view-name>"`.
 
@@ -55,7 +55,7 @@ Unique id, conventionally `"<extension-id>.<view-name>"`.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:707](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L707)
+Defined in: [packages/sdk/src/types.ts:752](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L752)
 
 Name shown for this view in the Navigator's view list.
 
@@ -67,7 +67,7 @@ Name shown for this view in the Navigator's view list.
 optional icon?: ReactNode;
 ```
 
-Defined in: [packages/sdk/src/types.ts:709](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L709)
+Defined in: [packages/sdk/src/types.ts:754](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L754)
 
 Optional icon rendered to the left of the title in the view list.
 
@@ -79,7 +79,7 @@ Optional icon rendered to the left of the title in the view list.
 component: ComponentType<NavigatorViewProps>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:711](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L711)
+Defined in: [packages/sdk/src/types.ts:756](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L756)
 
 The React component rendered as the whole panel body when active.
 
@@ -91,7 +91,7 @@ The React component rendered as the whole panel body when active.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:716](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L716)
+Defined in: [packages/sdk/src/types.ts:761](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L761)
 
 Sort order among views. Lower values appear first in the view list.
 Defaults to `0`; the built-in Workspaces view registers at `0`.

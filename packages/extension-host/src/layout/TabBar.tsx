@@ -1,13 +1,18 @@
 import { useMemo, useRef, useState } from "react";
+import { useSnapshot } from "valtio";
 import { openMenu } from "../extension-host/menu-controller";
 import type { MenuEntry } from "@silo-code/sdk";
 import type { SidePanel } from "@silo-code/sdk";
+import { Tooltip } from "@silo-code/sdk";
 import {
   store,
   setSidePanelSlot,
   reorderSidePanels,
   splitSideDock,
+  setSidePanelTabDisplay,
 } from "../state/store";
+import { resolveTabDisplay } from "../state/side-panel-tab-display";
+import { sidePanelTabDisplayItems } from "./side-panel-tab-display-menu";
 import { firstPaneId, type InsertSide } from "../state/side-dock-tree";
 import { sideTabDrag } from "./drag-state";
 import { SiloWordmark } from "./SiloWordmark";
@@ -43,6 +48,7 @@ export function TabBar({
   brand = false,
 }: TabBarProps) {
   const activeDrag = useSideTabDrag();
+  const snap = useSnapshot(store);
   const barRef = useRef<HTMLDivElement>(null);
   const [insertIdx, setInsertIdx] = useState<number | null>(null);
   const pointerRef = useRef<{
@@ -230,6 +236,13 @@ export function TabBar({
         items.push({ label: "Split Right", run: splitInto("right") });
         items.push({ label: "Split Down", run: splitInto("bottom") });
       }
+      items.push(
+        ...sidePanelTabDisplayItems(
+          panel,
+          store.sidePanelTabDisplay,
+          setSidePanelTabDisplay,
+        ),
+      );
       items.push({ type: "separator" });
     }
     items.push(...sidePanelVisibilityItems());
@@ -265,22 +278,48 @@ export function TabBar({
           <SiloWordmark />
         </span>
       )}
-      {displayPanels.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          data-panel-id={p.id}
-          className={[
-            "tab",
-            activeId === p.id ? "active" : "",
-            activeDrag?.panelId === p.id ? "tab-dragging" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          {p.title}
-        </button>
-      ))}
+      {displayPanels.map((p) => {
+        const display = resolveTabDisplay(p, snap.sidePanelTabDisplay);
+        const tab = (
+          <button
+            key={p.id}
+            type="button"
+            data-panel-id={p.id}
+            /* Icon-only tabs lose their accessible name with the text gone, so
+               state it outright. Harmless on the other two modes. */
+            aria-label={p.title}
+            className={[
+              "tab",
+              display === "icon" ? "tab-icon-only" : "",
+              activeId === p.id ? "active" : "",
+              activeDrag?.panelId === p.id ? "tab-dragging" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {/* Both children stay *inside* the button: every pointer handler on
+                the bar resolves its target with `closest("button.tab")`, and
+                `getInsertIdx` counts `.tab` elements — a sibling span would
+                break drag indices the way `.tab-brand` deliberately sits
+                outside them. */}
+            {display !== "title" && (
+              <span className="tab-icon" aria-hidden="true">
+                {p.icon}
+              </span>
+            )}
+            {display !== "icon" && <span className="tab-label">{p.title}</span>}
+          </button>
+        );
+        /* An icon-only tab has no visible name, so it gets the one hover hint
+           in the strip. The SDK Tooltip, never a native `title` — see AGENTS.md. */
+        return display === "icon" ? (
+          <Tooltip key={p.id} content={p.title}>
+            {tab}
+          </Tooltip>
+        ) : (
+          tab
+        );
+      })}
       <span className="spacer" />
     </div>
   );

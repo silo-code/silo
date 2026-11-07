@@ -19,7 +19,9 @@ identity icons, trailing Phosphor indicators, Activity, multi-contributor
 stacking, `flash`, and `bind`. SideDock tabs are different:
 
 - One tab per registered panel; identity already comes from `SidePanel.title`
-  (and any future static icon on the contribution).
+  and `SidePanel.icon` — the static icon this RFC anticipated, since shipped as
+  RFC 0065 / ADR 0058. That confirms the split below: identity is the
+  contribution's, adornment is the owner handle's.
 - The usual need is “my panel is working / has a warning” — the **owner** knows.
 - Cross-extension adornment of someone else’s side tab is rare and would invite
   the full center-dock surface onto a simpler chrome.

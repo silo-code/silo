@@ -1,3 +1,4 @@
+import { GitBranch } from "@phosphor-icons/react";
 import type { Extension } from "@silo-code/sdk";
 import { GitExplorerPanel } from "./GitExplorerPanel";
 import {
@@ -36,6 +37,7 @@ export const extension: Extension = {
       id: "git-explorer",
       location: "right",
       title: "Git",
+      icon: <GitBranch size="1em" weight="duotone" />,
       // Inject ctx so the panel/view reach workspaces/editors/files through
       // the public primitives, not host getters. No `paused`/`active` wiring
       // needed here (ADR 0037) — GitAPI.watchRepo's lifecycle is ambient and

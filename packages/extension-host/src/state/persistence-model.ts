@@ -17,6 +17,7 @@ import type {
   GlobalPanelLayout,
   PanelStateSnapshot,
   SidePanelSlot,
+  SidePanelTabDisplay,
   TerminalSettings,
   WorkspaceInternal,
   WorkspaceGroup,
@@ -77,6 +78,11 @@ export interface PersistedIndex {
   globalActiveTabEnabled?: boolean;
   globalPanelLayout?: GlobalPanelLayout;
   globalActiveSidePanelTabs?: Record<string, string>;
+  // Per-tab SideDock tab display mode (icon / title / both), keyed by side
+  // panel id. Global (not per-workspace) — ADR 0058. Absent in older indexes,
+  // and absent whenever the user has changed nothing: every value defaults to
+  // title-only at hydrate.
+  sidePanelTabDisplay?: Record<string, SidePanelTabDisplay>;
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
@@ -368,6 +374,13 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     globalActiveSidePanelTabs: snapshot.globalActiveSidePanelTabs
       ? { ...snapshot.globalActiveSidePanelTabs }
       : undefined,
+    // Copied, not aliased, and omitted while empty so an untouched install
+    // writes no key at all.
+    sidePanelTabDisplay:
+      snapshot.sidePanelTabDisplay &&
+      Object.keys(snapshot.sidePanelTabDisplay).length > 0
+        ? { ...snapshot.sidePanelTabDisplay }
+        : undefined,
   };
 }
 

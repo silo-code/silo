@@ -154,3 +154,4 @@ don't get a proposal at all — see below.
 | [0062](./0062-agent-questions.md)                             | Agent questions (ACP elicitation)                                  | 2026-10-14 | implemented |
 | [0063](./0063-panel-and-editor-focus.md)                      | `PanelService.focus` / `EditorService.focus`                       | 2026-10-15 | implemented |
 | [0064](./0064-active-panel-state.md)                          | Active dock-panel state — `ctx.panels`, consistent `ctx.terminals` | 2026-10-15 | implemented |
+| [0065](./0065-side-panel-tab-display.md)                      | Side panel tab icons and per-tab display                           | 2026-11-06 | implemented |
