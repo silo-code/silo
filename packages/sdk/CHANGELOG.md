@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.63.0](https://github.com/silo-code/silo/compare/sdk-v0.62.1...sdk-v0.63.0) (2026-11-07)
+
+
+### Features
+
+* **sdk:** side panel tab icons with per-tab display ([#667](https://github.com/silo-code/silo/issues/667)) ([96f634e](https://github.com/silo-code/silo/commit/96f634ea3162c38da2e013a4d8da3ddf8a95fde8))
+
 ## [0.62.1](https://github.com/silo-code/silo/compare/sdk-v0.62.0...sdk-v0.62.1) (2026-10-26)
 
 
