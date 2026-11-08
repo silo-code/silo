@@ -686,9 +686,17 @@ restore flow above already requires.
 
 `readJournal(sessionId, options?)` reads a session's **transcript journal**
 straight off disk — no agent process, no `connect()` handshake, no
-`session/resume`/`session/load` round trip. Useful for a dormant entry: paint
-what the conversation last looked like the instant the user reveals it,
-before the reconnect that `connect({ resume })` still has to do resolves:
+`session/resume`/`session/load` round trip.
+
+> **`raw` is empty on a replayed update.** The journal stores the _typed_
+> update stream, not the untouched protocol frame (RFC 0042) — the frame
+> duplicated what `toolCall` already held and was 69% of a real 94.6 MB
+> journal. `text`, `content`, `toolCall`, `plan` and `usage` all replay
+> intact; only the escape hatch is absent, and journals written before this
+> still carry theirs. Live updates from `onUpdate` are unaffected. The same
+> applies to `session.journal`. Useful for a dormant entry: paint
+> what the conversation last looked like the instant the user reveals it,
+> before the reconnect that `connect({ resume })` still has to do resolves:
 
 ```ts
 const journal = await ctx.agents.sessions.readJournal(dormantSessionId);

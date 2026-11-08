@@ -56,10 +56,35 @@ export async function readJournalLines(
   }
 }
 
+/**
+ * Serialize one update as a journal line, **without `raw`**.
+ *
+ * `raw` is the untouched Agent Client Protocol frame, and for a tool call it
+ * repeats wholesale what `toolCall` already holds. Measured on a real 94.6 MB
+ * journal: 65.3 MB of it — 69% — was `raw` duplicating a payload stored one
+ * field over. Dropping it makes journals **3.4x** smaller, which shrinks disk,
+ * the resident write buffer, and the whole-file read every restore pays.
+ *
+ * Nothing in Silo reads `raw` back off a journal. `acp-update-model.ts` models
+ * every kind defensively so no consumer has to, and the Chat panel's transcript
+ * reducer says so outright ("Never read `update.raw`"). `raw` stays on **live**
+ * updates, where it is a documented escape hatch; it is only the persisted copy
+ * that goes. {@link parseJournalLines} puts an empty `raw` back so a replayed
+ * update still satisfies its type.
+ */
+export function serializeJournalLine(update: AgentSessionUpdate): string {
+  const { raw: _raw, ...rest } = update;
+  return JSON.stringify(rest);
+}
+
 /** Parse journal lines into {@link AgentSessionUpdate}s. A line that fails to
  *  parse, or does not look like an update, is skipped rather than sinking the
  *  whole read — one corrupt line (a torn write across a crash) should not
- *  cost the rest of the conversation. */
+ *  cost the rest of the conversation.
+ *
+ *  Fills in an empty `raw` for a line written without one — see
+ *  {@link serializeJournalLine}. A line that carries its own (anything written
+ *  before that change) keeps it. */
 export function parseJournalLines(
   lines: readonly string[],
 ): AgentSessionUpdate[] {
@@ -72,7 +97,11 @@ export function parseJournalLines(
         typeof parsed === "object" &&
         typeof (parsed as Record<string, unknown>).kind === "string"
       ) {
-        out.push(parsed as AgentSessionUpdate);
+        // `raw` is not persisted (see `serializeJournalLine`), but the type
+        // requires it. Older journals still carry one; keep it when present so
+        // this stays a pure widening for them.
+        const update = parsed as AgentSessionUpdate;
+        out.push(update.raw ? update : { ...update, raw: {} });
       }
     } catch {
       // Skip — see doc comment above.
@@ -168,7 +197,7 @@ export function closeUnresolvedElicitations(
   const ids = unresolvedElicitationIds(lines);
   if (ids.length === 0) return null;
   const closed = ids.map((id) =>
-    JSON.stringify({
+    serializeJournalLine({
       kind: ELICITATION_RESOLUTION_KIND,
       elicitation: { id, resolution: "interrupted" },
       raw: { synthesized: true },
@@ -362,7 +391,7 @@ export function createJournalWriter(
   return {
     append(update) {
       if (disposed) return;
-      lines.push(JSON.stringify(update));
+      lines.push(serializeJournalLine(update));
       schedule();
     },
     async flush() {

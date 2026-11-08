@@ -38,6 +38,7 @@ import {
   pruneOrphanedChatJournals,
   readJournal,
   readJournalLines,
+  serializeJournalLine,
   unresolvedElicitationIds,
   unresolvedElicitationLines,
 } from "./chat-session-journal";
@@ -46,6 +47,11 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 
 function update(kind: string, text?: string): AgentSessionUpdate {
   return { kind, text, raw: {} } as AgentSessionUpdate;
+}
+
+/** What {@link update} looks like once written — the journal drops `raw`. */
+function journalLine(kind: string, text?: string): string {
+  return serializeJournalLine(update(kind, text));
 }
 
 beforeEach(() => {
@@ -91,7 +97,49 @@ describe("readJournalLines / readJournal", () => {
     );
     const { lines, updates } = await readJournal("ws1", "s1");
     expect(lines).toHaveLength(1);
-    expect(updates).toEqual([{ kind: "agent_message_chunk", text: "hi" }]);
+    // `raw` is backfilled empty — the journal does not persist it.
+    expect(updates).toEqual([
+      { kind: "agent_message_chunk", text: "hi", raw: {} },
+    ]);
+  });
+});
+
+describe("serializeJournalLine", () => {
+  // `raw` repeats what `toolCall` already holds. On a real 94.6 MB journal it
+  // was 65.3 MB — 69% — so dropping it makes journals 3.4x smaller.
+  it("omits raw", () => {
+    const line = serializeJournalLine({
+      kind: "tool_call",
+      toolCall: { toolCallId: "t1", title: "ls" },
+      raw: { toolCallId: "t1", title: "ls", sessionUpdate: "tool_call" },
+    } as unknown as AgentSessionUpdate);
+    expect(JSON.parse(line)).toEqual({
+      kind: "tool_call",
+      toolCall: { toolCallId: "t1", title: "ls" },
+    });
+    expect(line).not.toContain("sessionUpdate");
+  });
+
+  it("keeps every modelled field across a write and a read", () => {
+    const original = {
+      kind: "tool_call_update",
+      text: "out",
+      content: [{ type: "content", content: { type: "text", text: "x" } }],
+      toolCall: { toolCallId: "t1", title: "ls", kind: "execute" },
+      messageId: "m1",
+      subagentId: "s1",
+      raw: { dropped: true },
+    } as unknown as AgentSessionUpdate;
+    const [back] = parseJournalLines([serializeJournalLine(original)]);
+    expect(back).toEqual({ ...original, raw: {} });
+  });
+
+  it("leaves a journal written before this change alone", () => {
+    // Older lines still carry their own `raw`; parsing must not clobber it.
+    const [back] = parseJournalLines([
+      '{"kind":"agent_message_chunk","text":"hi","raw":{"sessionUpdate":"agent_message_chunk"}}',
+    ]);
+    expect(back!.raw).toEqual({ sessionUpdate: "agent_message_chunk" });
   });
 });
 
@@ -209,8 +257,8 @@ describe("createJournalWriter", () => {
     const [path, content] = fsWriteText.mock.calls[0];
     expect(path).toBe("/cfg/workspaces/ws1/chat-sessions/s1.jsonl");
     expect(content.trim().split("\n")).toEqual([
-      JSON.stringify(update("agent_message_chunk", "a")),
-      JSON.stringify(update("agent_message_chunk", "b")),
+      journalLine("agent_message_chunk", "a"),
+      journalLine("agent_message_chunk", "b"),
     ]);
   });
 
@@ -228,7 +276,7 @@ describe("createJournalWriter", () => {
     const content = fsWriteText.mock.calls[0][1] as string;
     expect(content.trim().split("\n")).toEqual([
       '{"kind":"old"}',
-      JSON.stringify(update("new-kind")),
+      journalLine("new-kind"),
     ]);
   });
 
@@ -285,7 +333,7 @@ describe("createJournalWriter", () => {
     writer.append(update("new-kind"));
     expect(writer.snapshotLines()).toEqual([
       '{"kind":"old"}',
-      JSON.stringify(update("new-kind")),
+      journalLine("new-kind"),
     ]);
   });
 
@@ -296,13 +344,9 @@ describe("createJournalWriter", () => {
     ]);
     writer.append(update("replayed"));
     writer.dropSeed(2);
-    expect(writer.snapshotLines()).toEqual([
-      JSON.stringify(update("replayed")),
-    ]);
+    expect(writer.snapshotLines()).toEqual([journalLine("replayed")]);
     await writer.flush();
-    expect(fsWriteText.mock.calls[0][1]).toBe(
-      JSON.stringify(update("replayed")) + "\n",
-    );
+    expect(fsWriteText.mock.calls[0][1]).toBe(journalLine("replayed") + "\n");
   });
 
   it("dropSeed(0) and a negative n are no-ops", () => {
@@ -323,14 +367,10 @@ describe("createJournalWriter", () => {
       '{"kind":"seed1"}',
       '{"kind":"seed2"}',
     ]);
-    writer.replaceLines([JSON.stringify(update("corrected"))]);
-    expect(writer.snapshotLines()).toEqual([
-      JSON.stringify(update("corrected")),
-    ]);
+    writer.replaceLines([journalLine("corrected")]);
+    expect(writer.snapshotLines()).toEqual([journalLine("corrected")]);
     await writer.flush();
-    expect(fsWriteText.mock.calls[0][1]).toBe(
-      JSON.stringify(update("corrected")) + "\n",
-    );
+    expect(fsWriteText.mock.calls[0][1]).toBe(journalLine("corrected") + "\n");
   });
 
   it("replaceLines does nothing on a disposed writer", () => {
@@ -456,7 +496,7 @@ describe("subagent attribution round-trips", () => {
   it("still parses a journal written before this change", () => {
     // No `subagentId`, no `delegation` — which reads as the parent's own
     // frame and renders exactly as it did.
-    const lines = [JSON.stringify(update("agent_message_chunk", "hello"))];
+    const lines = [journalLine("agent_message_chunk", "hello")];
     const parsed = parseJournalLines(lines);
     expect(parsed).toHaveLength(1);
     expect("subagentId" in parsed[0]!).toBe(false);

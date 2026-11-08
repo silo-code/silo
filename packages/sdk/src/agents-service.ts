@@ -1769,7 +1769,11 @@ export interface AgentSessionHandle {
    * **transcript journal** (RFC 0042), read from disk. Empty when
    * {@link resumeOutcome} is `"new"` and nothing preceded this connection;
    * populated for `"resumed"` (a `session/resume` reconnect, which itself
-   * replays nothing — this is the only record) and `"journal-only"`. Feed
+   * replays nothing — this is the only record) and `"journal-only"`.
+   *
+   * As with {@link AgentSessionsService.readJournal}, these are replayed from
+   * disk and so carry an empty {@link AgentSessionUpdate.raw}; every modelled
+   * field is intact. Feed
    * these through the same reducer as {@link onUpdate} before subscribing to
    * it, e.g. `journal.reduce(applyUpdate, emptyTranscript)`.
    */
@@ -2114,6 +2118,14 @@ export interface AgentSessionsService {
    * Resolves `[]` for a session that never wrote a journal entry, or an
    * unknown id — never rejects on a merely-missing journal. Needs the
    * `"agents"` {@link Permission}, same as {@link connect}.
+   *
+   * **{@link AgentSessionUpdate.raw} is empty on a replayed update.** The
+   * journal does not persist the untouched protocol frame: for a tool call it
+   * repeats what `toolCall` already holds, and on a real 94.6 MB journal that
+   * duplication was 69% of the file. Every modelled field — `text`, `content`,
+   * `toolCall`, `plan`, `usage` — is replayed intact; only the escape hatch is
+   * absent, and journals written before this still carry theirs. Live updates
+   * from {@link connect} are unaffected.
    *
    * @param sessionId — an {@link AgentSessionHandle.sessionId}.
    */
