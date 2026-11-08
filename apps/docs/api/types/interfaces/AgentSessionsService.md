@@ -1,6 +1,6 @@
 # Interface: AgentSessionsService
 
-Defined in: [packages/sdk/src/agents-service.ts:2082](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2082)
+Defined in: [packages/sdk/src/agents-service.ts:2086](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2086)
 
 **`Beta`**
 
@@ -38,7 +38,7 @@ ctx.subscriptions.push(off, { dispose: () => session.dispose() });
 connect(profileId, options?): Promise<AgentSessionHandle>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2102)
+Defined in: [packages/sdk/src/agents-service.ts:2106](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2106)
 
 **`Beta`**
 
@@ -81,7 +81,7 @@ through to a fresh `session/new` (RFC 0042); see [AgentSessionHandle.resumeOutco
 readJournal(sessionId, options?): Promise<readonly AgentSessionUpdate[]>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2120](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2120)
+Defined in: [packages/sdk/src/agents-service.ts:2132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2132)
 
 **`Beta`**
 
@@ -95,6 +95,14 @@ independently on purpose.
 Resolves `[]` for a session that never wrote a journal entry, or an
 unknown id — never rejects on a merely-missing journal. Needs the
 `"agents"` [Permission](../type-aliases/Permission.md), same as [connect](#connect).
+
+**[AgentSessionUpdate.raw](AgentSessionUpdate.md#raw) is empty on a replayed update.** The
+journal does not persist the untouched protocol frame: for a tool call it
+repeats what `toolCall` already holds, and on a real 94.6 MB journal that
+duplication was 69% of the file. Every modelled field — `text`, `content`,
+`toolCall`, `plan`, `usage` — is replayed intact; only the escape hatch is
+absent, and journals written before this still carry theirs. Live updates
+from [connect](#connect) are unaffected.
 
 #### Parameters
 

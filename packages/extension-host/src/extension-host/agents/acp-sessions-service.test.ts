@@ -2486,8 +2486,9 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     expect(fakeClient.newSession).not.toHaveBeenCalled();
     expect(handle.resumeOutcome).toBe("resumed");
     expect(handle.sessionId).toBe("old-id");
+    // `raw` is backfilled empty — the journal does not persist it.
     expect(handle.journal).toEqual([
-      { kind: "agent_message_chunk", text: "hi" },
+      { kind: "agent_message_chunk", text: "hi", raw: {} },
     ]);
     expect(chatAgentInfos()[0].chatResumeState).toBe("resumed");
   });
@@ -2660,7 +2661,7 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     expect(handle.resumeOutcome).toBe("journal-only");
     expect(handle.sessionId).toBe("old-id");
     expect(handle.journal).toEqual([
-      { kind: "user_message_chunk", text: "are you there?" },
+      { kind: "user_message_chunk", text: "are you there?", raw: {} },
     ]);
     expect(chatAgentInfos()[0]).toMatchObject({
       chatResumeState: "journal-only",
@@ -2750,7 +2751,7 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     // `session/load` id-adoption does, and carry the old journal into it.
     expect(handle.sessionId).toBe("s1");
     expect(handle.journal).toEqual([
-      { kind: "user_message_chunk", text: "earlier turn" },
+      { kind: "user_message_chunk", text: "earlier turn", raw: {} },
     ]);
   });
 
@@ -2780,7 +2781,7 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     });
 
     expect(handle.journal).toEqual([
-      { kind: "user_message_chunk", text: "earlier turn" },
+      { kind: "user_message_chunk", text: "earlier turn", raw: {} },
     ]);
   });
 
@@ -3059,8 +3060,11 @@ describe("readJournal()", () => {
         JSON.stringify(u),
       ),
     );
+    // `raw` comes back empty: the journal does not persist the untouched
+    // protocol frame (it duplicated `toolCall` and was 69% of a real 94.6 MB
+    // journal). Every modelled field is replayed intact.
     await expect(service.readJournal("s1")).resolves.toEqual([
-      { kind: "agent_message_chunk", text: "hi" },
+      { kind: "agent_message_chunk", text: "hi", raw: {} },
     ]);
   });
 
@@ -3070,7 +3074,7 @@ describe("readJournal()", () => {
     ]);
     await expect(
       service.readJournal("s2", { workspaceId: "other" }),
-    ).resolves.toEqual([{ kind: "plan", plan: [] }]);
+    ).resolves.toEqual([{ kind: "plan", plan: [], raw: {} }]);
   });
 });
 

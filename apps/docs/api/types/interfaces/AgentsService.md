@@ -1,6 +1,6 @@
 # Interface: AgentsService
 
-Defined in: [packages/sdk/src/agents-service.ts:2149](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2149)
+Defined in: [packages/sdk/src/agents-service.ts:2161](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2161)
 
 **`Beta`**
 
@@ -31,7 +31,7 @@ ctx.subscriptions.push(sub);
 catalog(): readonly CatalogAgentSummary[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2332](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2332)
+Defined in: [packages/sdk/src/agents-service.ts:2344](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2344)
 
 Every coding agent Silo knows about, as read-only
 [CatalogAgentSummary](CatalogAgentSummary.md) records. Detection stays sealed (ADR 0028) —
@@ -53,7 +53,7 @@ readonly [`CatalogAgentSummary`](CatalogAgentSummary.md)[]
 readonly profiles: AgentProfilesService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2341](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2341)
+Defined in: [packages/sdk/src/agents-service.ts:2353](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2353)
 
 **`Beta`**
 
@@ -68,7 +68,7 @@ an opening prompt. See [AgentProfilesService](AgentProfilesService.md).
 readonly sessions: AgentSessionsService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2352](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2352)
+Defined in: [packages/sdk/src/agents-service.ts:2364](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2364)
 
 **`Beta`**
 
@@ -85,7 +85,7 @@ every `connect()` throws without it.
 getState(options?): AgentInfo[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2155)
+Defined in: [packages/sdk/src/agents-service.ts:2167](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2167)
 
 **`Beta`**
 
@@ -113,7 +113,7 @@ instead.
 getByTerminalId(terminalId): AgentInfo | undefined;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2160](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2160)
+Defined in: [packages/sdk/src/agents-service.ts:2172](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2172)
 
 **`Beta`**
 
@@ -140,7 +140,7 @@ Look up [AgentInfo](AgentInfo.md) for a specific terminal tab by its record id.
 subscribe(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2166](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2166)
+Defined in: [packages/sdk/src/agents-service.ts:2178](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2178)
 
 **`Beta`**
 
@@ -172,7 +172,7 @@ instead. Returns a [Disposable](Disposable.md) that cancels the subscription.
 acknowledge(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2197](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2197)
+Defined in: [packages/sdk/src/agents-service.ts:2209](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2209)
 
 **`Beta`**
 
@@ -221,7 +221,7 @@ ctx.subscriptions.push(
 getActive(): string | null;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2217](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2217)
+Defined in: [packages/sdk/src/agents-service.ts:2229](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2229)
 
 **`Beta`**
 
@@ -256,7 +256,7 @@ const rows = ctx.agents.getState().filter((a) => a.id !== watching);
 subscribeActive(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2223](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2223)
+Defined in: [packages/sdk/src/agents-service.ts:2235](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2235)
 
 **`Beta`**
 
@@ -282,7 +282,7 @@ new value (or `null`) whenever the active surface moves. Returns a
 bindActivity(binder): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2256](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2256)
+Defined in: [packages/sdk/src/agents-service.ts:2268](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2268)
 
 **`Beta`**
 
@@ -336,7 +336,7 @@ ctx.subscriptions.push(
 bindIcon(binder): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2267](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2267)
+Defined in: [packages/sdk/src/agents-service.ts:2279](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2279)
 
 **`Beta`**
 
@@ -367,7 +367,7 @@ the host reserves tab space for an icon that never appears.
 invalidateAdornments(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2274](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2274)
+Defined in: [packages/sdk/src/agents-service.ts:2286](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2286)
 
 **`Beta`**
 
@@ -388,7 +388,7 @@ active theme — since the host cannot know about those.
 close(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2285](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2285)
+Defined in: [packages/sdk/src/agents-service.ts:2297](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2297)
 
 **`Beta`**
 
@@ -419,7 +419,7 @@ Silo will not kill a connection whose UI it cannot account for.
 reveal(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2299](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2299)
+Defined in: [packages/sdk/src/agents-service.ts:2311](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2311)
 
 **`Beta`**
 
@@ -453,7 +453,7 @@ A no-op for an unknown id, or when the session's backing surface is gone
 resume(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:2319](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2319)
+Defined in: [packages/sdk/src/agents-service.ts:2331](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L2331)
 
 **`Beta`**
 
