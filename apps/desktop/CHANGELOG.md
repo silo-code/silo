@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.1](https://github.com/silo-code/silo/compare/silo-v0.81.0...silo-v0.81.1) (2026-11-08)
+
+
+### Performance Improvements
+
+* **agents:** stop persisting the raw protocol frame in the chat journal ([#670](https://github.com/silo-code/silo/issues/670)) ([b4dc5cc](https://github.com/silo-code/silo/commit/b4dc5cc14297ea8a8bb95578d97761c6f14c842b)), closes [#665](https://github.com/silo-code/silo/issues/665)
+
 ## [0.81.0](https://github.com/silo-code/silo/compare/silo-v0.80.0...silo-v0.81.0) (2026-11-07)
 
 
