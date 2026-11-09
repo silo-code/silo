@@ -98,21 +98,37 @@ describe("createPathVerifier", () => {
     );
   });
 
-  it("does not let that rule swallow prose", async () => {
-    // `/tmp` exists, but the reading adds no directory level the span lacked,
-    // so `and b.txt` stays prose.
-    const line = "wrote /tmp/a and b.txt";
+  it("keeps a reading that exists ahead of a longer one that doesn't", () => {
+    // The pass that accepts a not-yet-written file runs only after *every*
+    // reading has been checked against disk. Otherwise `updated /src/foo.ts
+    // and bar.ts` would claim the whole sentence on the strength of `/src`.
+    const line = "updated /src/foo.ts and bar.ts";
     const span: FilePathSpan = {
-      text: "/tmp/a",
-      index: 6,
-      href: "/tmp/a",
+      text: "/src/foo.ts",
+      index: 8,
     };
-    const { v } = verifier(["/tmp"]);
-    await expect(v.verify(line, span, "/ws")).resolves.toBe("/tmp/a");
+    const { v } = verifier(["/src", "/src/foo.ts"]);
+    return expect(v.verify(line, span, "/ws")).resolves.toBe("/src/foo.ts");
+  });
 
-    // And a reading whose tail isn't a filename can't pass on its directory.
-    const { v: v2 } = verifier(["/Users/me/docs/Global Navigation"]);
-    await expect(v2.verify(LINE, SPAN, "/ws")).resolves.toBe(
+  it("reaches a file in a directory that doesn't exist yet", () => {
+    // `mkdir -p` territory: the subdirectory is as new as the file. The walk
+    // up stops at the seed's own parent, so it can never reach past what the
+    // regexes already read.
+    const line = "writing /a/My Notes/new dir/deep.txt now";
+    const span: FilePathSpan = {
+      text: "/a/My",
+      index: 8,
+    };
+    const { v } = verifier(["/a/My Notes"]);
+    return expect(v.verify(line, span, "/ws")).resolves.toBe(
+      "/a/My Notes/new dir/deep.txt",
+    );
+  });
+
+  it("stops a reading whose tail is not a filename", () => {
+    const { v } = verifier(["/Users/me/docs/Global Navigation"]);
+    return expect(v.verify(LINE, SPAN, "/ws")).resolves.toBe(
       "/Users/me/docs/Global Navigation/Overview.md",
     );
   });
