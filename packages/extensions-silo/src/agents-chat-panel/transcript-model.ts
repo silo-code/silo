@@ -33,6 +33,7 @@ import type {
   AgentSessionUpdate,
   AgentToolCall,
   AgentToolCallContent,
+  AgentToolCallLocation,
 } from "@silo-code/sdk";
 import { resolveToolDiffs, type ToolDiff } from "./tool-diff";
 import { formatToolKindLabel } from "./tool-display";
@@ -95,6 +96,12 @@ export interface ToolEntry {
    *  reading a modelled `AgentToolCall` field, not the wire's `raw` escape
    *  hatch this file otherwise refuses. */
   readonly rawInput?: unknown;
+  /** The files this call is about, as the **agent** named them (the protocol's
+   *  `locations`) — not parsed out of {@link title}. An exact path, spaces and
+   *  all, so the row links the real file instead of a reading of its label
+   *  (RFC 0066). Accumulated across frames like {@link subagent}: an update
+   *  that carries no locations means "unchanged", not "now none". */
+  readonly locations?: readonly AgentToolCallLocation[];
   /** This call dispatched a subagent (RFC 0055). Accumulated across frames —
    *  the marker rides only the opening frames. */
   readonly subagent?: boolean;
@@ -792,6 +799,9 @@ export function applyUpdate(
         // the whole reason the row ends up knowing it is a dispatch that was
         // handed off rather than a call that finished.
         subagent: call.subagent ?? prev.subagent,
+        // Same accumulation, same reason (RFC 0066): the opening frame names
+        // the file, and the updates that follow carry status alone.
+        locations: call.locations ?? prev.locations,
         handedOff: call.handedOff ?? prev.handedOff,
         // Same accumulation, same reason (RFC 0058): the backgrounded marker
         // rides exactly one frame — the one carrying the misleading
@@ -817,6 +827,7 @@ export function applyUpdate(
       lines,
       ...(diffs.length > 0 ? { diffs } : {}),
       ...(call.rawInput !== undefined ? { rawInput: call.rawInput } : {}),
+      ...(call.locations !== undefined ? { locations: call.locations } : {}),
       ...(call.subagent !== undefined ? { subagent: call.subagent } : {}),
       ...(call.handedOff !== undefined ? { handedOff: call.handedOff } : {}),
       ...(call.backgrounded !== undefined

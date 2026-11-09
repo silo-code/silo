@@ -444,6 +444,33 @@ describe("applyUpdate — tool calls", () => {
     });
   });
 
+  it("carries the protocol's locations onto the row", () => {
+    const path = "/Users/me/docs/Global Navigation/Overview.md";
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: "c1",
+        title: `Edit ${path}`,
+        locations: [{ path, line: 12 }],
+      }),
+    ]);
+    expect((t.entries[0] as ToolEntry).locations).toEqual([{ path, line: 12 }]);
+  });
+
+  it("keeps locations when a later update carries none", () => {
+    // Same accumulation as the subagent markers: an update that changed only
+    // the status must not erase the file the call is about.
+    const path = "/a/My Notes/b.md";
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: "c1",
+        title: "Edit b.md",
+        locations: [{ path }],
+      }),
+      tool("tool_call_update", { toolCallId: "c1", status: "completed" }),
+    ]);
+    expect((t.entries[0] as ToolEntry).locations).toEqual([{ path }]);
+  });
+
   it("does not blank existing content when an update carries none", () => {
     const t = fold([
       tool("tool_call", {
