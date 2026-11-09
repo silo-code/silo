@@ -58,12 +58,25 @@ through to the layers below.
 
 For free prose, tool output, and terminal lines, an ambiguous span proposes a
 **candidate ladder** — the span, then the span plus each following word, capped
-at 10 words — and a verifier walks it longest-first against `ctx.files.pathExists`,
-taking the first reading that is real. A reading whose file does not exist yet
-also counts when its _directory_ does and its last segment reads as a filename,
-so a file the agent is about to write still links; two guards (the reading must
-add a directory level the span lacked, and its tail must look like a filename)
-keep that from swallowing prose.
+at 10 words — and a verifier walks it in two passes against
+`ctx.files.pathExists`.
+
+**Pass 1** takes the longest reading that exists. It runs to the end of the
+ladder before the second pass starts, so `updated /src/foo.ts and bar.ts` lands
+on the file that exists rather than letting a longer reading claim the sentence
+on the strength of `/src` alone.
+
+**Pass 2** runs only when every reading is dead, and takes the longest one
+written into a real directory — an agent announcing a file it is _about_ to
+create reads exactly like that, and a dead short link helps nobody. It walks up
+a level or two (a file in a directory as new as itself), floored at the seed's
+own parent so it can never reach back past what the regular expression read.
+
+A not-yet-written file and a sentence that runs on past a path are **identical
+on disk**: real directory, filename-shaped tail, nothing that exists. The
+tiebreak is therefore the English — a speculative reading may not cross a word
+like `and`, `then`, `just`, `with`. That list is consulted by pass 2 only, so a
+directory genuinely named `Rock and Roll` links whole the moment it exists.
 
 **When it runs is the design.** Never during render:
 

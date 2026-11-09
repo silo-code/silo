@@ -133,6 +133,32 @@ describe("createPathVerifier", () => {
     );
   });
 
+  it("will not speculate past a word that reads as prose", () => {
+    // `/tmp` is real and `a and b.txt` is filename-shaped, so only the English
+    // keeps this out: a sentence that runs on past a path is not a filename.
+    const line = "wrote /tmp/a and b.txt just now";
+    const span: FilePathSpan = {
+      text: "/tmp/a",
+      index: 6,
+    };
+    const { v } = verifier(["/tmp"]);
+    return expect(v.verify(line, span, "/ws")).resolves.toBe("/tmp/a");
+  });
+
+  it("still links a real directory whose name contains such a word", () => {
+    // The existence pass never consults that list, so `Rock and Roll` is only
+    // ever a problem for a file that does not exist yet.
+    const line = "playing ~/Music/Rock and Roll/Song.mp3 now";
+    const span: FilePathSpan = {
+      text: "~/Music/Rock",
+      index: 8,
+    };
+    const { v } = verifier(["~/Music/Rock and Roll/Song.mp3"]);
+    return expect(v.verify(line, span, "/ws")).resolves.toBe(
+      "~/Music/Rock and Roll/Song.mp3",
+    );
+  });
+
   it("treats a rejected probe as 'does not exist'", async () => {
     const exists = vi.fn(async () => {
       throw new Error("EACCES");
