@@ -57,6 +57,7 @@ import { effectiveFontFamily } from "./terminal-font";
 import { buildTerminalPaste } from "./terminal-path-paste";
 import { findFileLinks, getHomeDir } from "./terminal-links";
 import { resolveTerminalFilePath } from "./terminal-open-file";
+import { createPathVerifier } from "./terminal-link-verify";
 import {
   isLinkActivationClick,
   linkMenuLabels,
@@ -135,6 +136,16 @@ interface LiveRefs {
    * lost the race) resurrected the pre-clear scrollback.
    */
   persistNow?: () => void;
+}
+
+/** The directory a relative path in this terminal's output resolves against,
+ *  without the foreground-cwd round trip `openFileFromTerminal` makes. Good
+ *  enough to *verify* a path against on hover, and cheap enough to do there. */
+function baseDirForTerminal(terminalId: string): string {
+  const wsId = findTerminalOwnerId(Object.values(store.workspaces), terminalId);
+  if (!wsId) return "";
+  const ws = store.workspaces[wsId];
+  return ws.terminals.find((t) => t.id === terminalId)?.cwd ?? ws.folder;
 }
 
 async function openFileFromTerminal(
@@ -402,18 +413,34 @@ export function TerminalPanel(
       }
     }
 
+    // One verifier for this terminal's lifetime — it caches, including misses
+    // (RFC 0066). `ctx.files` is the public surface for the probe; nothing
+    // here reaches past the SDK.
+    const verifier = createPathVerifier({
+      exists: (absolute) => ctx.files.pathExists(absolute),
+      resolve: async (candidate) =>
+        resolveTerminalFilePath(
+          candidate,
+          baseDirForTerminal(terminalId),
+          candidate.startsWith("~/") ? await getHomeDir() : undefined,
+        ),
+    });
+
     term.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
-        callback(
-          findFileLinks(term, bufferLineNumber, {
-            isMac,
-            onActivate: (text) =>
-              openFileFromTerminal(text, terminalId, ctx.editors),
-            onHover: (event, text, range) =>
-              showLinkTooltip(event, "path", text, range),
-            onLeave: () => hideLinkTooltip(),
-          }),
-        );
+        // xterm allows the callback to answer later, which is what lets a
+        // hovered line be checked against the filesystem before its links are
+        // reported — and why no other line ever is.
+        void findFileLinks(term, bufferLineNumber, {
+          isMac,
+          onActivate: (text) =>
+            openFileFromTerminal(text, terminalId, ctx.editors),
+          onHover: (event, text, range) =>
+            showLinkTooltip(event, "path", text, range),
+          onLeave: () => hideLinkTooltip(),
+          verify: (line, span) =>
+            verifier.verify(line, span, baseDirForTerminal(terminalId)),
+        }).then(callback);
       },
     });
 

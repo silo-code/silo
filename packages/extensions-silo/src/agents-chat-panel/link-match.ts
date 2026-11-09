@@ -13,6 +13,13 @@
  * keeps this from lighting up every "Node.js" or "config.json" mentioned in
  * prose.
  *
+ * A directory segment may carry single interior spaces
+ * (`~/Blog Posts/Shift.md`) — the space is absorbed only when its segment is
+ * immediately followed by a separator, which is what proves the space was
+ * interior to the path rather than the end of it. The last segment stays
+ * space-free unless a delimiter pair bounds the whole path, so an
+ * undelimited `~/My Notes/Trip Notes.md` links only `~/My Notes/Trip`.
+ *
  * Windows paths are rooted at a drive letter (`C:\Users\me\silo.exe`) and
  * match whole. A bare `dir\file.ts` deliberately doesn't: a lone backslash is
  * more often an escape than a separator, and nothing distinguishes the two
@@ -26,24 +33,52 @@ export type ChatLinkKind = "url" | "path";
 
 export interface ChatLinkSpan {
   readonly kind: ChatLinkKind;
+  /** The characters the span covers — what gets underlined. */
   readonly text: string;
   readonly index: number;
+  /** What the span opens. Differs from {@link text} where the written form is
+   *  not the path itself: `Blog\ Posts/a.md` underlines the escapes but opens
+   *  `Blog Posts/a.md`, and a `file://` URL opens its decoded path. */
+  readonly href: string;
 }
 
 const PATH_CHARS = String.raw`[A-Za-z0-9_./\-@+]`;
 // Windows segments are separated by `\`, but `C:/Users/me` is equally valid,
 // so both separators are in play once a drive letter has rooted the path.
-const WIN_PATH_CHARS = String.raw`[A-Za-z0-9_.\\/\-@+]`;
 const WIN_DRIVE = String.raw`[A-Za-z]:[\\/]`;
 const BARE_FILENAME_3 = String.raw`[A-Za-z0-9_\-@+]+\.[A-Za-z0-9]{3}(?![A-Za-z0-9])`;
-function pathBody(chars: string, winChars: string): string {
-  return String.raw`(?:${WIN_DRIVE}${winChars}+|(?:~|\.{1,2})?\/${chars}+|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+|${BARE_FILENAME_3})`;
+// One path segment. A backslash-escaped space is *part of* a segment, not a
+// boundary — it is how a shell, and most CLI output, writes a space it means
+// literally. Unlike a bare space it needs no "a separator follows" proof: the
+// escape is the proof, so it is allowed in the last segment too.
+const SEG = String.raw`(?:[A-Za-z0-9_.\-@+]|\\ )+`;
+// The same segment carrying *unescaped* interior spaces. Only ever used where
+// a separator follows, which is what proves the space was interior to the
+// path rather than the end of it.
+//
+// Bare matches take **one** such space (`Global Navigation/`), not any number:
+// a greedy walk across several spaces will happily cross a sentence to reach
+// the next word that happens to be followed by a slash, and link
+// `/a/b.md then src/foo.ts` as one path. One space is the common real case
+// (`Program Files\`, `Blog Posts/`) and it cannot reach past the word after
+// it. Anything longer is for the filesystem to confirm on hover (RFC 0066) —
+// and it must be, because verification can only *extend* a span, never shrink
+// one the regex over-read.
+const SPACED_SEG_1 = String.raw`${SEG}(?: ${SEG})?`;
+// Inside a delimiter pair there is a terminator, so any number of spaces is
+// safe — the match cannot run past its own closing bracket.
+const SPACED_SEG = String.raw`${SEG}(?: ${SEG})*`;
+/** `dirSeg` / `finalSeg` are the directory and trailing segment classes:
+ *  one-space and space-free when bare, unbounded when a delimiter pair bounds
+ *  the match. `chars` only feeds the bare relative form, which has no root to
+ *  anchor a space-absorbing walk. */
+function pathBody(chars: string, dirSeg: string, finalSeg: string): string {
+  return String.raw`(?:${WIN_DRIVE}(?:${dirSeg}[\\/])*${finalSeg}|(?:~|\.{1,2})?\/(?:${dirSeg}\/)*${finalSeg}|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+|${BARE_FILENAME_3})`;
 }
 const LINE_COL_SUFFIX = String.raw`(?::\d+(?::\d+)?)?`;
-const BARE = String.raw`(?<![A-Za-z0-9_.:/\\\-@+])${pathBody(PATH_CHARS, WIN_PATH_CHARS)}${LINE_COL_SUFFIX}`;
+const BARE = String.raw`(?<![A-Za-z0-9_.:/\\\-@+])${pathBody(PATH_CHARS, SPACED_SEG_1, SEG)}${LINE_COL_SUFFIX}`;
 
 const PATH_CHARS_SPACED = String.raw`[A-Za-z0-9_./\-@+ ]`;
-const WIN_PATH_CHARS_SPACED = String.raw`[A-Za-z0-9_.\\/\-@+ ]`;
 const DELIMITER_PAIRS: Array<[string, string]> = [
   ["(", ")"],
   ["[", "]"],
@@ -53,7 +88,7 @@ const DELIMITER_PAIRS: Array<[string, string]> = [
 function delimited(open: string, close: string): string {
   const o = `\\${open}`;
   const c = `\\${close}`;
-  return String.raw`(?<=${o})${pathBody(PATH_CHARS_SPACED, WIN_PATH_CHARS_SPACED)}${LINE_COL_SUFFIX}(?=${c})`;
+  return String.raw`(?<=${o})${pathBody(PATH_CHARS_SPACED, SPACED_SEG, SPACED_SEG)}${LINE_COL_SUFFIX}(?=${c})`;
 }
 
 const FILE_PATH_RE = new RegExp(
@@ -82,7 +117,12 @@ function collect(
   while ((m = re.exec(text)) !== null) {
     const matchText = stripTrailing(m[0], trailing);
     if (!matchText) continue;
-    out.push({ kind, text: matchText, index: m.index });
+    out.push({
+      kind,
+      text: matchText,
+      index: m.index,
+      href: hrefFor(kind, matchText),
+    });
   }
   return out;
 }
@@ -91,13 +131,73 @@ function overlaps(a: ChatLinkSpan, b: ChatLinkSpan): boolean {
   return a.index < b.index + b.text.length && b.index < a.index + a.text.length;
 }
 
-/** URL and file-path spans in `text`, URLs first so a path inside a URL is not also linked. */
-export function matchChatLinks(text: string): ChatLinkSpan[] {
-  const urls = collect(text, URL_RE, "url", TRAILING_URL_PUNCT_RE);
-  const paths = collect(text, FILE_PATH_RE, "path", TRAILING_PUNCT_RE).filter(
-    (p) => !urls.some((u) => overlaps(p, u)),
+/**
+ * Spans a caller already knows are paths, located in `text` literally.
+ *
+ * These come from the protocol (`AgentToolCall.locations`) or from the call's
+ * own input — the agent saying "this call is about *this* file" — so they
+ * outrank anything the regular expressions below would read out of the same
+ * characters. That is what makes a path with spaces exact rather than guessed.
+ */
+function knownSpans(
+  text: string,
+  knownPaths: readonly string[],
+): ChatLinkSpan[] {
+  const out: ChatLinkSpan[] = [];
+  // Longest first: a location nested inside another (a directory and a file
+  // under it) must not win the overlap against the longer one.
+  for (const p of [...knownPaths].sort((a, b) => b.length - a.length)) {
+    if (!p) continue;
+    let from = 0;
+    for (;;) {
+      const index = text.indexOf(p, from);
+      if (index < 0) break;
+      const span: ChatLinkSpan = { kind: "path", text: p, index, href: p };
+      if (!out.some((o) => overlaps(span, o))) out.push(span);
+      from = index + p.length;
+    }
+  }
+  return out;
+}
+
+/**
+ * URL and file-path spans in `text`.
+ *
+ * Precedence, highest first: `knownPaths` (exact, from the protocol), then
+ * URLs (so a path inside a URL is not also linked), then the path regexes.
+ */
+export function matchChatLinks(
+  text: string,
+  knownPaths?: readonly string[],
+): ChatLinkSpan[] {
+  const known = knownPaths?.length ? knownSpans(text, knownPaths) : [];
+  const urls = collect(text, URL_RE, "url", TRAILING_URL_PUNCT_RE).filter(
+    (u) => !known.some((k) => overlaps(u, k)),
   );
-  return [...urls, ...paths].sort((a, b) => a.index - b.index);
+  const paths = collect(text, FILE_PATH_RE, "path", TRAILING_PUNCT_RE).filter(
+    (p) => ![...urls, ...known].some((o) => overlaps(p, o)),
+  );
+  return [...known, ...urls, ...paths].sort((a, b) => a.index - b.index);
+}
+
+/** The path a span opens: `\ ` escapes collapsed, `file://` URLs decoded. */
+function hrefFor(kind: ChatLinkKind, text: string): string {
+  if (kind === "url") return text;
+  return text.replace(/\\ /g, " ");
+}
+
+/**
+ * The local path a `file:` URL names, or `undefined` for any other URL.
+ * `file:///Users/me/Blog%20Posts/a.md` is a path the editor can open — routing
+ * it to the OS instead would hand the file to another application.
+ */
+export function filePathFromUrl(href: string): string | undefined {
+  if (!/^file:\/\//i.test(href)) return undefined;
+  try {
+    return decodeURIComponent(new URL(href).pathname);
+  } catch {
+    return undefined;
+  }
 }
 
 /** `http(s):` / `file:` are URLs; everything else is a path (markdown `[x](src/a.ts)`). */

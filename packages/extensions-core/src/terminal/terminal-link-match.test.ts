@@ -125,12 +125,51 @@ describe("matchFilePaths", () => {
     ).toEqual(["~/Blog Posts/Shift.md"]);
   });
 
-  it("does not allow spaces in undelimited paths", () => {
-    // The space still breaks the match into two spans (pre-existing
-    // behavior for space-free path detection); it just no longer swallows
-    // trailing prose the way an unbounded space-inclusive class would.
+  it("absorbs an interior space in an undelimited path", () => {
+    // The space is only taken because `Blog Posts` is followed by a
+    // separator — proof it was interior to the path, not the end of it. The
+    // trailing prose stays out.
     expect(
       texts("Wrote 97 lines to ~/Blog Posts/Shift.md successfully"),
-    ).toEqual(["~/Blog", "Posts/Shift.md"]);
+    ).toEqual(["~/Blog Posts/Shift.md"]);
+    expect(
+      texts("Edit /Users/dave/documents/Global Navigation/Overview.md"),
+    ).toEqual(["/Users/dave/documents/Global Navigation/Overview.md"]);
+    expect(texts(String.raw`run C:\Program Files\Silo\silo.exe now`)).toEqual([
+      String.raw`C:\Program Files\Silo\silo.exe`,
+    ]);
+  });
+
+  it("takes one interior space per segment, not a run of them", () => {
+    expect(texts("wrote /a/b.md then src/foo.ts")).toEqual([
+      "/a/b.md",
+      "src/foo.ts",
+    ]);
+  });
+
+  it("links a path whose spaces are backslash-escaped", () => {
+    const spans = matchFilePaths(
+      String.raw`wrote ~/Blog\ Posts/My\ Post.md ok`,
+    );
+    expect(spans.map((s) => s.text)).toEqual([
+      String.raw`~/Blog\ Posts/My\ Post.md`,
+    ]);
+    // What the editor is handed has the escapes collapsed.
+    expect(spans[0]?.href).toBe("~/Blog Posts/My Post.md");
+  });
+
+  it("stops an undelimited path at a space in its last segment", () => {
+    // Nothing terminates the final segment, so absorbing a space there would
+    // let the match run into the sentence after it.
+    // (The terminal has no bare-filename rule, so the tail links nothing.)
+    expect(texts("~/My Notes/Trip Notes.txt")).toEqual(["~/My Notes/Trip"]);
+  });
+
+  it("does not absorb the space before an unrelated path", () => {
+    expect(texts("see /etc/hosts and /etc/passwd now")).toEqual([
+      "/etc/hosts",
+      "/etc/passwd",
+    ]);
+    expect(texts("open /src/foo and then stop")).toEqual(["/src/foo"]);
   });
 });

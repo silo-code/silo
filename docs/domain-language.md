@@ -1284,6 +1284,37 @@ session.
 _Avoid_: Terminal id (a different, always-present identifier), Agent id
 (prefer Catalog Agent id, e.g. `"claude"`, for the stable catalog key)
 
+### File Links
+
+**Link Span**:
+A run of characters in Chat transcript text or terminal output that Silo marks
+as openable — underlined, activated with ⌘/Ctrl-click. A span has the text it
+_covers_ and the `href` it _opens_, which differ whenever the written form is
+not the path itself (`Blog\ Posts/a.md`, a percent-encoded `file://` URL).
+_Avoid_: Match (that's the regex's half of it), hyperlink (a URL is only one
+kind of span)
+
+**Known Path**:
+A path Silo did not have to read out of text — the agent said it outright, in
+an ACP tool call's `locations`, its diff, or its tool input. Exact by
+definition, so it outranks any heuristic reading of the same characters
+(RFC 0066).
+_Avoid_: Resolved path (that's the absolute path an open resolves to), detected
+path (a Known Path is the opposite of detected)
+
+**Candidate Ladder**:
+The readings an ambiguous Link Span could have, longest first — the span, then
+the span plus each following word. Exists because text alone cannot say where a
+path with spaces ends; the filesystem picks the rung (RFC 0066).
+_Avoid_: Guesses, variants (the ladder is ordered, and the order is the rule)
+
+**Verification**:
+Asking the filesystem which rung of a Candidate Ladder is real, on **hover and
+activation only** — never while rendering, which is the rule that keeps a large
+transcript's rebuild (RFC 0050) free of I/O. Verification may only _extend_ a
+span, never shrink one, which is why the matcher stays conservative.
+_Avoid_: Validation (nothing is rejected — an unverified span still links)
+
 ### Terminal Environment
 
 **Terminal Identity**:

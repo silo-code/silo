@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { kindFromHref, matchChatLinks } from "./link-match";
+import { filePathFromUrl, kindFromHref, matchChatLinks } from "./link-match";
 
-function texts(line: string): string[] {
-  return matchChatLinks(line).map((m) => m.text);
+function texts(line: string, knownPaths?: readonly string[]): string[] {
+  return matchChatLinks(line, knownPaths).map((m) => m.text);
 }
 
 function kinds(line: string): string[] {
@@ -87,10 +87,115 @@ describe("matchChatLinks", () => {
     expect(texts("see log.out for details")).toEqual(["log.out"]);
   });
 
+  it("absorbs an interior space in an undelimited path", () => {
+    // The reported bug: a tool title naming a real folder with a space in it
+    // used to break into two links — `/…/ServiceTitan/Global` and a bogus
+    // `Navigation/Overview.md` that resolved to nothing. The space is only
+    // absorbed because `Global Navigation` is followed by a separator.
+    expect(
+      texts(
+        "Edit /Users/dave/documents/ServiceTitan/Global Navigation/Overview.md",
+      ),
+    ).toEqual([
+      "/Users/dave/documents/ServiceTitan/Global Navigation/Overview.md",
+    ]);
+    expect(
+      texts("Wrote 97 lines to ~/Blog Posts/Shift.md successfully"),
+    ).toEqual(["~/Blog Posts/Shift.md"]);
+    expect(texts(String.raw`run C:\Program Files\Silo\silo.exe now`)).toEqual([
+      String.raw`C:\Program Files\Silo\silo.exe`,
+    ]);
+  });
+
+  it("takes one interior space per segment, not a run of them", () => {
+    // A greedy walk would cross the sentence to reach `src/`, linking
+    // `/a/b.md then src/foo.ts` as one path. Anything longer than one space is
+    // for hover verification to confirm (RFC 0066).
+    expect(texts("wrote /a/b.md then src/foo.ts")).toEqual([
+      "/a/b.md",
+      "src/foo.ts",
+    ]);
+    // A three-word directory stays unread here — hover verification is what
+    // reaches it, and swallows the stray second span while it does.
+    expect(texts("/a/My Big Notes/x.txt")).toEqual(["/a/My", "Notes/x.txt"]);
+  });
+
+  it("stops an undelimited path at a space in its last segment", () => {
+    // Nothing terminates the final segment, so absorbing a space there would
+    // let the match run into the sentence after it. (`Notes.txt` links on its
+    // own under the bare-filename rule.)
+    expect(texts("~/My Notes/Trip Notes.txt")).toEqual([
+      "~/My Notes/Trip",
+      "Notes.txt",
+    ]);
+  });
+
+  it("does not absorb the space before an unrelated path", () => {
+    expect(texts("see /etc/hosts and /etc/passwd now")).toEqual([
+      "/etc/hosts",
+      "/etc/passwd",
+    ]);
+    expect(texts("open /src/foo and then stop")).toEqual(["/src/foo"]);
+  });
+
   it("skips a bare filename whose extension isn't 3 chars", () => {
     expect(texts("using Node.js")).toEqual([]);
     expect(texts("edited notes.md")).toEqual([]);
     expect(texts("wrote config.json")).toEqual([]);
+  });
+});
+
+describe("matchChatLinks with known paths", () => {
+  it("links a known path whole, spaces and all", () => {
+    const known = "/Users/me/docs/Global Navigation/Overview.md";
+    expect(texts(`Edit ${known}`, [known])).toEqual([known]);
+  });
+
+  it("outranks a heuristic reading of the same characters", () => {
+    // Without the location, `…/Global` and `Navigation/Overview.md` would be
+    // two spans, the second of them bogus.
+    const known = "/Users/me/x/Global Nav/Overview.md";
+    const line = `Edit ${known} now`;
+    expect(matchChatLinks(line, [known])).toHaveLength(1);
+  });
+
+  it("keeps unrelated spans beside a known path", () => {
+    const known = "/a/My Notes/b.md";
+    expect(texts(`Edit ${known} then src/foo.ts`, [known])).toEqual([
+      known,
+      "src/foo.ts",
+    ]);
+  });
+
+  it("ignores a known path the text doesn't contain", () => {
+    expect(texts("Edit src/foo.ts", ["/elsewhere/other.md"])).toEqual([
+      "src/foo.ts",
+    ]);
+  });
+
+  it("prefers the longest known path when one nests inside another", () => {
+    const dir = "/a/My Notes";
+    const file = "/a/My Notes/b.md";
+    expect(texts(`Edit ${file}`, [dir, file])).toEqual([file]);
+  });
+});
+
+describe("escaped spaces and file URLs", () => {
+  it("links a path whose spaces are backslash-escaped, and opens it unescaped", () => {
+    const spans = matchChatLinks(
+      String.raw`wrote ~/Blog\ Posts/My\ Post.md ok`,
+    );
+    expect(spans.map((s) => s.text)).toEqual([
+      String.raw`~/Blog\ Posts/My\ Post.md`,
+    ]);
+    expect(spans[0]?.href).toBe("~/Blog Posts/My Post.md");
+  });
+
+  it("decodes a file:// URL to the path it names", () => {
+    expect(filePathFromUrl("file:///Users/me/Global%20Nav/a.md")).toBe(
+      "/Users/me/Global Nav/a.md",
+    );
+    expect(filePathFromUrl("https://example.com/a")).toBeUndefined();
   });
 });
 

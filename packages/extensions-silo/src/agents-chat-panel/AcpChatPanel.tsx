@@ -267,9 +267,13 @@ import { PromptBubble } from "./PromptBubble";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import {
   ChatLinkSpan,
+  ChatLinkVerifyContext,
   LinkifiedText,
+  chatLinkCandidates,
   chatLinkFromTarget,
 } from "./LinkifiedText";
+import { createPathVerifier } from "./link-verify";
+import { toolKnownPaths } from "./tool-known-paths";
 import { isLinkActivationClick } from "./link-policy";
 import { isPanelBackgroundClick } from "./panel-focus";
 import { fileDropPaths } from "./file-drop";
@@ -285,11 +289,14 @@ import {
   diffHeadingParts,
   diffLines,
   toolInputIsDiffOnly,
-  toolPathFromRawInput,
   toolShowsInlineDiff,
   type ToolDiff,
 } from "./tool-diff";
-import { matchChatLinks } from "./link-match";
+import {
+  filePathFromUrl,
+  matchChatLinks,
+  type ChatLinkSpan as ChatLinkSpanModel,
+} from "./link-match";
 import {
   carriesUsageForward,
   isReadOnly,
@@ -937,14 +944,18 @@ function renderTranscriptEntry(
       entry.title,
       entry.subagent,
     );
+    // The files this call is *known* to be about — the protocol's `locations`
+    // first, then the call's own diff/input (RFC 0066). A title containing one
+    // links exactly that, so a path with spaces in it is read off the agent's
+    // own words instead of guessed out of the label.
+    const knownPaths = toolKnownPaths(entry);
     // A title with no `/` (e.g. "Edit tool-demo.txt") doesn't match the
     // transcript's generic path regex, which requires one to avoid false
     // positives on things like version numbers. When the tool call names its
-    // file directly (a diff's path, or rawInput's `file_path`/`path`), link
-    // the whole title to it instead of leaving it dead text.
-    const titleFallbackPath =
-      diffs[0]?.path ?? toolPathFromRawInput(entry.rawInput);
-    const titleHasMatches = matchChatLinks(entry.title).length > 0;
+    // file directly, link the whole title to it instead of leaving it dead
+    // text.
+    const titleFallbackPath = knownPaths[0];
+    const titleHasMatches = matchChatLinks(entry.title, knownPaths).length > 0;
     // RFC 0055. A dispatch reads as `Agent(<what it was asked to do>)`, and a
     // call a subagent made on its behalf names the dispatch it belongs to —
     // resolved by id, since the children routinely land in a later turn than
@@ -986,7 +997,7 @@ function renderTranscriptEntry(
       ) : isRunning && !titleHasMatches ? (
         <WaveText text={rowTitle} />
       ) : (
-        <LinkifiedText text={rowTitle} />
+        <LinkifiedText text={rowTitle} knownPaths={knownPaths} />
       );
     return (
       <div
@@ -3199,22 +3210,58 @@ export function AcpChatPanel({
     navigator.platform.toUpperCase().includes("MAC");
   const cmdKey = isMac ? "⌘" : "Ctrl";
 
+  // One verifier per panel: it caches, and a cache that died with each render
+  // would re-probe the same spans forever. `ctx.files` is the public surface for
+  // this — nothing here reaches past the SDK (RFC 0066).
+  const verifier = useMemo(
+    () =>
+      createPathVerifier({
+        exists: (absolute) => ctx.files.pathExists(absolute),
+        resolve: async (candidate) =>
+          resolveChatFilePath(
+            candidate,
+            cwd,
+            candidate.startsWith("~/")
+              ? (await ctx.system.homeDir()).replace(/\/$/, "")
+              : undefined,
+          ),
+      }),
+    [ctx, cwd],
+  );
+  // Handed to the transcript's link spans, which call it on hover only.
+  const verifyChatLink = useCallback(
+    (line: string, span: ChatLinkSpanModel) => verifier.verify(line, span, cwd),
+    [verifier, cwd],
+  );
+
   const openChatLink = useCallback(
-    (kind: "url" | "path", text: string) => {
-      if (kind === "url") {
+    (kind: "url" | "path", text: string, candidates?: readonly string[]) => {
+      // A `file://` URL names a local file, so it opens in the editor like any
+      // other path — handing it to the OS would open it in another app.
+      const asFilePath = kind === "url" ? filePathFromUrl(text) : undefined;
+      if (kind === "url" && !asFilePath) {
         void ctx.ui.openExternal(text);
         return;
       }
       void (async () => {
-        const home = text.startsWith("~/")
+        // Activation never trusts the underline: a ⌘-click faster than the
+        // hover probe resolves the ladder first (a cache hit, normally), so
+        // the file that opens is the one that exists — not the reading the
+        // regex happened to stop at.
+        const matched =
+          asFilePath ??
+          (candidates && candidates.length > 1
+            ? await verifier.verifyCandidates(candidates, cwd)
+            : text);
+        const home = matched.startsWith("~/")
           ? (await ctx.system.homeDir()).replace(/\/$/, "")
           : undefined;
-        ctx.editors.open(resolveChatFilePath(text, cwd, home), {
+        ctx.editors.open(resolveChatFilePath(matched, cwd, home), {
           workspaceId,
         });
       })();
     },
-    [ctx, cwd, workspaceId],
+    [ctx, cwd, workspaceId, verifier],
   );
 
   const onTranscriptClick = useCallback(
@@ -3222,7 +3269,11 @@ export function AcpChatPanel({
       const link = chatLinkFromTarget(e.target);
       if (!link || !isLinkActivationClick(e, isMac)) return;
       e.preventDefault();
-      openChatLink(link.kind, link.text);
+      openChatLink(
+        link.kind,
+        link.text,
+        e.target instanceof Element ? chatLinkCandidates(e.target) : undefined,
+      );
     },
     [openChatLink],
   );
@@ -3232,6 +3283,8 @@ export function AcpChatPanel({
       e.preventDefault();
       const selection = window.getSelection()?.toString() ?? "";
       const link = chatLinkFromTarget(e.target);
+      const candidates =
+        e.target instanceof Element ? chatLinkCandidates(e.target) : undefined;
       void ctx.ui.showMenu({
         at: { x: e.clientX, y: e.clientY },
         items: buildChatSelectionMenu({
@@ -3249,7 +3302,7 @@ export function AcpChatPanel({
             sel?.addRange(range);
           },
           onOpenLink: link
-            ? () => openChatLink(link.kind, link.text)
+            ? () => openChatLink(link.kind, link.text, candidates)
             : undefined,
           onCopyLink: link
             ? () => void navigator.clipboard.writeText(link.text)
@@ -3780,84 +3833,91 @@ export function AcpChatPanel({
   }
 
   return (
-    <div
-      className="acp-chat"
-      ref={rootRef}
-      onClick={onPanelClick}
-      onKeyDown={onPanelKeyDown}
-    >
-      {/* Wraps the scroller purely to give the Prompt Rail a containing block
-          that is exactly the transcript area. `.acp-chat` would be the wrong
-          anchor — it includes the composer, and the rail would run underneath
-          it. The flex sizing chain is unchanged: this takes the growth the
-          scroller had, and the scroller keeps its own inside. */}
-      <div className="acp-chat__transcript">
-        <div
-          className="acp-chat__scroller"
-          ref={scrollerRef}
-          onScroll={onScroll}
-          onClick={onTranscriptClick}
-          onContextMenu={onTranscriptContextMenu}
-        >
-          {phase.status === "error" ? (
-            <div className="acp-chat__notice">
-              <EmptyState
-                title={`Could not start ${profile?.label ?? "the agent"}`}
-                description={phase.message}
-                action={
-                  <Button onClick={() => setNonce((n) => n + 1)}>Retry</Button>
-                }
+    // Every link span below reads its verifier from here — the one place that
+    // has `ctx.files` and this session's working directory (RFC 0066).
+    <ChatLinkVerifyContext.Provider value={verifyChatLink}>
+      <div
+        className="acp-chat"
+        ref={rootRef}
+        onClick={onPanelClick}
+        onKeyDown={onPanelKeyDown}
+      >
+        {/* Wraps the scroller purely to give the Prompt Rail a containing block
+            that is exactly the transcript area. `.acp-chat` would be the wrong
+            anchor — it includes the composer, and the rail would run underneath
+            it. The flex sizing chain is unchanged: this takes the growth the
+            scroller had, and the scroller keeps its own inside. */}
+        <div className="acp-chat__transcript">
+          <div
+            className="acp-chat__scroller"
+            ref={scrollerRef}
+            onScroll={onScroll}
+            onClick={onTranscriptClick}
+            onContextMenu={onTranscriptContextMenu}
+          >
+            {phase.status === "error" ? (
+              <div className="acp-chat__notice">
+                <EmptyState
+                  title={`Could not start ${profile?.label ?? "the agent"}`}
+                  description={phase.message}
+                  action={
+                    <Button onClick={() => setNonce((n) => n + 1)}>
+                      Retry
+                    </Button>
+                  }
+                />
+              </div>
+            ) : null}
+
+            {/* Off screen, the transcript renders no rows at all.
+             *
+             * Not a paint optimization — the browser already skips painting a
+             * hidden dock. This is about **render-tree size**, which is the second
+             * of the two factors behind RFC 0050's stall:
+             *
+             *  1. Once the WebContent process crosses WebKit's memory-pressure
+             *     threshold (measured cliff 1.5-1.8 GB), WebKit's pressure handler
+             *     starts dropping the style resolver and inline-layout caches. That
+             *     invalidates style and layout for the **entire document**, on
+             *     WebKit's own timer, with no JavaScript involved.
+             *  2. The cost of each of those is proportional to the whole document's
+             *     render tree — 390 ms at 87k nodes versus 52 ms at 698.
+             *
+             * `CenterDock` keeps every warmed workspace's dock in that one
+             * document, and a real transcript is ~15,000 nodes, so N warmed
+             * workspaces multiply factor 2 by N. Rendering only the on-screen
+             * transcript keeps the tree at one transcript's worth no matter how
+             * many workspaces are warm.
+             *
+             * Safe to drop the rows because **the panel does not unmount** — this
+             * is the same component, returning fewer children. `transcript.entries`
+             * stays in memory, so there is no re-seed from the journal, no second
+             * fold, and no entry-identity churn. The only thing DOM detachment
+             * costs is `scrollTop`, which this panel already stores twice over
+             * (`liveScrollRef` plus `params.scrollTop` in its `DockPanelRecord`)
+             * and already re-asserts on every transition back on screen — see the
+             * scroll-restore design comment above.
+             *
+             * Terminals are deliberately untouched: this is why the fix lives here
+             * and not in `CenterDock`. Unmounting a whole dock would force an xterm
+             * refit, which is the very thing the warmed-dock design exists to avoid.
+             */}
+            {/* Stands in for the turns above the tail, at their measured height, so
+              total content height — and therefore `scrollTop` — is unchanged by
+              the swap. Scrolling up into it calls `revealHead`. */}
+            {window_.kind === "tail" ? (
+              <div
+                className="acp-chat__head-spacer"
+                style={{ height: window_.spacerPx }}
+                aria-hidden="true"
               />
-            </div>
-          ) : null}
+            ) : null}
 
-          {/* Off screen, the transcript renders no rows at all.
-           *
-           * Not a paint optimization — the browser already skips painting a
-           * hidden dock. This is about **render-tree size**, which is the second
-           * of the two factors behind RFC 0050's stall:
-           *
-           *  1. Once the WebContent process crosses WebKit's memory-pressure
-           *     threshold (measured cliff 1.5-1.8 GB), WebKit's pressure handler
-           *     starts dropping the style resolver and inline-layout caches. That
-           *     invalidates style and layout for the **entire document**, on
-           *     WebKit's own timer, with no JavaScript involved.
-           *  2. The cost of each of those is proportional to the whole document's
-           *     render tree — 390 ms at 87k nodes versus 52 ms at 698.
-           *
-           * `CenterDock` keeps every warmed workspace's dock in that one
-           * document, and a real transcript is ~15,000 nodes, so N warmed
-           * workspaces multiply factor 2 by N. Rendering only the on-screen
-           * transcript keeps the tree at one transcript's worth no matter how
-           * many workspaces are warm.
-           *
-           * Safe to drop the rows because **the panel does not unmount** — this
-           * is the same component, returning fewer children. `transcript.entries`
-           * stays in memory, so there is no re-seed from the journal, no second
-           * fold, and no entry-identity churn. The only thing DOM detachment
-           * costs is `scrollTop`, which this panel already stores twice over
-           * (`liveScrollRef` plus `params.scrollTop` in its `DockPanelRecord`)
-           * and already re-asserts on every transition back on screen — see the
-           * scroll-restore design comment above.
-           *
-           * Terminals are deliberately untouched: this is why the fix lives here
-           * and not in `CenterDock`. Unmounting a whole dock would force an xterm
-           * refit, which is the very thing the warmed-dock design exists to avoid.
-           */}
-          {/* Stands in for the turns above the tail, at their measured height, so
-            total content height — and therefore `scrollTop` — is unchanged by
-            the swap. Scrolling up into it calls `revealHead`. */}
-          {window_.kind === "tail" ? (
-            <div
-              className="acp-chat__head-spacer"
-              style={{ height: window_.spacerPx }}
-              aria-hidden="true"
-            />
-          ) : null}
-
-          {window_.kind !== "dropped"
-            ? (window_.kind === "tail" ? turns.slice(window_.from) : turns).map(
-                (turn, i, all) => {
+            {window_.kind !== "dropped"
+              ? (window_.kind === "tail"
+                  ? turns.slice(window_.from)
+                  : turns
+                ).map((turn, i, all) => {
                   const running = busy && i === all.length - 1;
                   return (
                     <TranscriptTurn
@@ -3877,467 +3937,481 @@ export function AcpChatPanel({
                       }
                     />
                   );
-                },
-              )
-            : null}
+                })
+              : null}
 
-          {/* Inline, in the flow of the transcript — never a modal. The agent is
-            blocked on this answer, and a modal would both hide the transcript
-            that explains what it is asking about and stop the user reading the
-            rest of the app. */}
-          {permissions.map((pending) => (
-            <div key={pending.key} className="acp-chat__permission">
-              <div className="acp-chat__permission-title">
-                {pending.request.title}
-              </div>
-              {/* Recon Finding 1: an agent may touch the filesystem without ever
-                asking. Silo must not imply it gates anything. */}
-              <div className="acp-chat__permission-note">
-                The agent asked before doing this. It is not required to — Silo
-                does not gate what an agent can do.
-              </div>
-              <div className="acp-chat__permission-actions">
-                {pending.request.options.map((option) => (
-                  <Button
-                    key={option.optionId}
-                    size="sm"
-                    variant={permissionButtonVariant(option.kind)}
-                    onClick={() => answer(pending, option.optionId)}
-                  >
-                    {option.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {/* RFC 0062 — the agent asked a structured question. Inline for the
-            same reason as the permission card above: a modal would hide the
-            conversation that explains what is being asked. */}
-          {questions.map((pending) => {
-            const { request, form } = pending;
-            const active = activeQuestion(request.questions, pending.activeId);
-            // What the agent would actually receive — an abandoned draft is
-            // still in `form` (the box shows it) but counts for nothing here.
-            const sending = effectiveAnswers(
-              form,
-              request.questions,
-              pending.customChosen,
-            );
-            const sendable = canSubmit(sending, request.questions);
-            const answered = answeredCount(sending, request.questions);
-            return (
-              <div key={pending.key} className="acp-chat__question">
-                <div className="acp-chat__question-title">
-                  {request.message}
+            {/* Inline, in the flow of the transcript — never a modal. The agent is
+              blocked on this answer, and a modal would both hide the transcript
+              that explains what it is asking about and stop the user reading the
+              rest of the app. */}
+            {permissions.map((pending) => (
+              <div key={pending.key} className="acp-chat__permission">
+                <div className="acp-chat__permission-title">
+                  {pending.request.title}
                 </div>
-                {/* One tab per question (RFC 0062 follow-up), always — including
-                  a lone one, so every ask reads the same and the agent's
-                  header always has somewhere to sit. The protocol has no
-                  notion of tabs; this is presentation, and the CLI reads the
-                  same flat payload the same way. */}
-                {active ? (
-                  <>
-                    <Tabs
-                      tabs={questionTabs(request.questions, sending).map(
-                        (t) => ({
-                          id: t.id,
-                          label: t.label,
-                          icon: (
-                            // Named, not `aria-hidden`. Showing one question at a
-                            // time is what makes this marker necessary in the
-                            // first place; hiding it from assistive tech would
-                            // take the affordance away from exactly the users who
-                            // cannot glance at the strip to recover it.
-                            <span
-                              className="acp-chat__question-tab-state"
-                              data-answered={t.answered || undefined}
-                              role="img"
-                              aria-label={
-                                t.answered ? "Answered" : "Not answered"
-                              }
-                            >
-                              {t.answered ? (
-                                <CheckCircle size="1em" weight="fill" />
-                              ) : (
-                                <Circle size="1em" />
-                              )}
-                            </span>
-                          ),
-                        }),
-                      )}
-                      active={active.id}
-                      onSelect={(id) => selectQuestionTab(pending, id)}
-                    />
-                    <TabPanel>
-                      <QuestionField
-                        question={active}
-                        form={form}
-                        single={request.questions.length === 1}
-                        customChosen={isCustomChosen(
-                          pending.customChosen,
-                          active.id,
+                {/* Recon Finding 1: an agent may touch the filesystem without ever
+                  asking. Silo must not imply it gates anything. */}
+                <div className="acp-chat__permission-note">
+                  The agent asked before doing this. It is not required to —
+                  Silo does not gate what an agent can do.
+                </div>
+                <div className="acp-chat__permission-actions">
+                  {pending.request.options.map((option) => (
+                    <Button
+                      key={option.optionId}
+                      size="sm"
+                      variant={permissionButtonVariant(option.kind)}
+                      onClick={() => answer(pending, option.optionId)}
+                    >
+                      {option.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* RFC 0062 — the agent asked a structured question. Inline for the
+              same reason as the permission card above: a modal would hide the
+              conversation that explains what is being asked. */}
+            {questions.map((pending) => {
+              const { request, form } = pending;
+              const active = activeQuestion(
+                request.questions,
+                pending.activeId,
+              );
+              // What the agent would actually receive — an abandoned draft is
+              // still in `form` (the box shows it) but counts for nothing here.
+              const sending = effectiveAnswers(
+                form,
+                request.questions,
+                pending.customChosen,
+              );
+              const sendable = canSubmit(sending, request.questions);
+              const answered = answeredCount(sending, request.questions);
+              return (
+                <div key={pending.key} className="acp-chat__question">
+                  <div className="acp-chat__question-title">
+                    {request.message}
+                  </div>
+                  {/* One tab per question (RFC 0062 follow-up), always — including
+                    a lone one, so every ask reads the same and the agent's
+                    header always has somewhere to sit. The protocol has no
+                    notion of tabs; this is presentation, and the CLI reads the
+                    same flat payload the same way. */}
+                  {active ? (
+                    <>
+                      <Tabs
+                        tabs={questionTabs(request.questions, sending).map(
+                          (t) => ({
+                            id: t.id,
+                            label: t.label,
+                            icon: (
+                              // Named, not `aria-hidden`. Showing one question at a
+                              // time is what makes this marker necessary in the
+                              // first place; hiding it from assistive tech would
+                              // take the affordance away from exactly the users who
+                              // cannot glance at the strip to recover it.
+                              <span
+                                className="acp-chat__question-tab-state"
+                                data-answered={t.answered || undefined}
+                                role="img"
+                                aria-label={
+                                  t.answered ? "Answered" : "Not answered"
+                                }
+                              >
+                                {t.answered ? (
+                                  <CheckCircle size="1em" weight="fill" />
+                                ) : (
+                                  <Circle size="1em" />
+                                )}
+                              </span>
+                            ),
+                          }),
                         )}
-                        onEdit={(edit) => editQuestion(pending, edit)}
-                        onToggleCustom={(next) =>
-                          toggleQuestionCustom(pending, active.id, next)
-                        }
+                        active={active.id}
+                        onSelect={(id) => selectQuestionTab(pending, id)}
                       />
-                    </TabPanel>
-                  </>
-                ) : null}
-                <div className="acp-chat__question-actions">
-                  <Tooltip
-                    content={
-                      sendable
-                        ? "Send these answers to the agent"
-                        : "Answer at least one question, or Skip"
-                    }
-                  >
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={!sendable}
-                      onClick={() => answerQuestion(pending, "send")}
-                    >
-                      Send
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Don't answer. The agent carries on without this.">
-                    <Button
-                      size="sm"
-                      onClick={() => answerQuestion(pending, "skip")}
-                    >
-                      Skip
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Stop what the agent was doing when it asked.">
-                    <Button
-                      size="sm"
-                      onClick={() => answerQuestion(pending, "cancel")}
-                    >
-                      Cancel
-                    </Button>
-                  </Tooltip>
-                  {request.questions.length > 1 ? (
-                    <span className="acp-chat__question-progress">
-                      {answered} of {request.questions.length} answered
-                    </span>
+                      <TabPanel>
+                        <QuestionField
+                          question={active}
+                          form={form}
+                          single={request.questions.length === 1}
+                          customChosen={isCustomChosen(
+                            pending.customChosen,
+                            active.id,
+                          )}
+                          onEdit={(edit) => editQuestion(pending, edit)}
+                          onToggleCustom={(next) =>
+                            toggleQuestionCustom(pending, active.id, next)
+                          }
+                        />
+                      </TabPanel>
+                    </>
                   ) : null}
+                  <div className="acp-chat__question-actions">
+                    <Tooltip
+                      content={
+                        sendable
+                          ? "Send these answers to the agent"
+                          : "Answer at least one question, or Skip"
+                      }
+                    >
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        disabled={!sendable}
+                        onClick={() => answerQuestion(pending, "send")}
+                      >
+                        Send
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Don't answer. The agent carries on without this.">
+                      <Button
+                        size="sm"
+                        onClick={() => answerQuestion(pending, "skip")}
+                      >
+                        Skip
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Stop what the agent was doing when it asked.">
+                      <Button
+                        size="sm"
+                        onClick={() => answerQuestion(pending, "cancel")}
+                      >
+                        Cancel
+                      </Button>
+                    </Tooltip>
+                    {request.questions.length > 1 ? (
+                      <span className="acp-chat__question-progress">
+                        {answered} of {request.questions.length} answered
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {/* RFC 0042: neither `session/resume` nor `session/load` worked for
-            this persisted session. The transcript above is the journal alone
-            — there is no live agent to prompt in place. */}
-          {readOnly ? (
-            <div className="acp-chat__notice">
-              <EmptyState
-                title="This session can't be resumed"
-                description={`${profile?.label ?? agentName ?? "The agent"} could not reconnect this conversation. Nothing is lost — start a new one to keep going.`}
-                action={
-                  <Button onClick={continueInNewSession}>
-                    Continue in a new session
-                  </Button>
-                }
-              />
-            </div>
+            {/* RFC 0042: neither `session/resume` nor `session/load` worked for
+              this persisted session. The transcript above is the journal alone
+              — there is no live agent to prompt in place. */}
+            {readOnly ? (
+              <div className="acp-chat__notice">
+                <EmptyState
+                  title="This session can't be resumed"
+                  description={`${profile?.label ?? agentName ?? "The agent"} could not reconnect this conversation. Nothing is lost — start a new one to keep going.`}
+                  action={
+                    <Button onClick={continueInNewSession}>
+                      Continue in a new session
+                    </Button>
+                  }
+                />
+              </div>
+            ) : null}
+          </div>
+
+          {promptRailTicks.length >= PROMPT_RAIL_MIN_PROMPTS ? (
+            <PromptRail ticks={promptRailTicks} onSelect={scrollToPrompt} />
           ) : null}
         </div>
 
-        {promptRailTicks.length >= PROMPT_RAIL_MIN_PROMPTS ? (
-          <PromptRail ticks={promptRailTicks} onSelect={scrollToPrompt} />
-        ) : null}
-      </div>
+        <div className="acp-chat__composer">
+          {/* RFC 0055. Panel chrome, not a transcript entry: the entry stream is
+              history, and this is a standing fact about the exchange. It counts
+              dispatches and never names one — nothing on the wire says *which*
+              background agent finished.
 
-      <div className="acp-chat__composer">
-        {/* RFC 0055. Panel chrome, not a transcript entry: the entry stream is
-            history, and this is a standing fact about the exchange. It counts
-            dispatches and never names one — nothing on the wire says *which*
-            background agent finished.
+              The glyph is the static agent mark, not the spinner this used to
+              carry: a spinner asserts work in progress, which is exactly the
+              claim the wire cannot support. The text says what was dispatched;
+              the tooltip carries the caveat that Silo is not told when they
+              finish.
 
-            The glyph is the static agent mark, not the spinner this used to
-            carry: a spinner asserts work in progress, which is exactly the
-            claim the wire cannot support. The text says what was dispatched;
-            the tooltip carries the caveat that Silo is not told when they
-            finish.
+              Floated above the composer's divider rather than stacked in the
+              flex column (Dave's call), by the same `bottom: 100%` trick as the
+              jump-to-bottom button beside it: as a flex item it reserved height
+              and left a dead gap the transcript couldn't scroll into. As an
+              overlay it costs no layout, so the transcript runs all the way to
+              the divider and this rides over it on its own background.
 
-            Floated above the composer's divider rather than stacked in the
-            flex column (Dave's call), by the same `bottom: 100%` trick as the
-            jump-to-bottom button beside it: as a flex item it reserved height
-            and left a dead gap the transcript couldn't scroll into. As an
-            overlay it costs no layout, so the transcript runs all the way to
-            the divider and this rides over it on its own background.
-
-            Deliberately not inside the scroller: it is standing state, and
-            anything in there scrolls out of view. */}
-        {delegatedWaiting !== undefined || backgroundWaiting !== undefined ? (
-          <div className="acp-chat__activity-notices">
-            {delegatedWaiting !== undefined ? (
-              <Tooltip content="Silo isn't told when a background agent finishes, so this counts what was dispatched — not what is still running.">
-                <div className="acp-chat__delegated-waiting" aria-live="polite">
-                  <Robot size="1em" aria-hidden="true" />
-                  {delegatedWaiting}
-                </div>
-              </Tooltip>
-            ) : null}
-            {/* RFC 0058. Its own pill rather than a combined count, because the
-                two say different things: a dispatched agent may already be
-                finished without Silo being told, while a running shell is
-                known to be running. Merging them into one number would drag
-                the shell count down to the weaker of the two guarantees. */}
-            {backgroundWaiting !== undefined ? (
-              <Tooltip content="Commands the agent put in the background. Silo is told when each one finishes, so this count comes down on its own.">
-                <div
-                  className="acp-chat__background-waiting"
-                  aria-live="polite"
-                >
-                  <TerminalWindow size="1em" aria-hidden="true" />
-                  {backgroundWaiting}
-                </div>
-              </Tooltip>
-            ) : null}
-          </div>
-        ) : null}
-        {pinnedToBottom ? null : (
-          <Tooltip content="Jump to latest">
-            <IconButton
-              className="acp-chat__jump-to-bottom"
-              aria-label="Jump to latest"
-              onClick={jumpToBottom}
-            >
-              <CaretDown size="1em" weight="bold" aria-hidden="true" />
-            </IconButton>
-          </Tooltip>
-        )}
-        {attachments.length > 0 ? (
-          <div className="acp-chat__attachments" data-pending>
-            {attachments.map((att) => (
-              <span key={att.uri} className="acp-chat__chip">
-                {att.name}
-                <button
-                  type="button"
-                  className="acp-chat__chip-remove"
-                  aria-label={`Remove ${att.name}`}
-                  onClick={() =>
-                    setAttachments((prev) =>
-                      prev.filter((a) => a.uri !== att.uri),
-                    )
+              Deliberately not inside the scroller: it is standing state, and
+              anything in there scrolls out of view. */}
+          {delegatedWaiting !== undefined || backgroundWaiting !== undefined ? (
+            <div className="acp-chat__activity-notices">
+              {delegatedWaiting !== undefined ? (
+                <Tooltip content="Silo isn't told when a background agent finishes, so this counts what was dispatched — not what is still running.">
+                  <div
+                    className="acp-chat__delegated-waiting"
+                    aria-live="polite"
+                  >
+                    <Robot size="1em" aria-hidden="true" />
+                    {delegatedWaiting}
+                  </div>
+                </Tooltip>
+              ) : null}
+              {/* RFC 0058. Its own pill rather than a combined count, because the
+                  two say different things: a dispatched agent may already be
+                  finished without Silo being told, while a running shell is
+                  known to be running. Merging them into one number would drag
+                  the shell count down to the weaker of the two guarantees. */}
+              {backgroundWaiting !== undefined ? (
+                <Tooltip content="Commands the agent put in the background. Silo is told when each one finishes, so this count comes down on its own.">
+                  <div
+                    className="acp-chat__background-waiting"
+                    aria-live="polite"
+                  >
+                    <TerminalWindow size="1em" aria-hidden="true" />
+                    {backgroundWaiting}
+                  </div>
+                </Tooltip>
+              ) : null}
+            </div>
+          ) : null}
+          {pinnedToBottom ? null : (
+            <Tooltip content="Jump to latest">
+              <IconButton
+                className="acp-chat__jump-to-bottom"
+                aria-label="Jump to latest"
+                onClick={jumpToBottom}
+              >
+                <CaretDown size="1em" weight="bold" aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {attachments.length > 0 ? (
+            <div className="acp-chat__attachments" data-pending>
+              {attachments.map((att) => (
+                <span key={att.uri} className="acp-chat__chip">
+                  {att.name}
+                  <button
+                    type="button"
+                    className="acp-chat__chip-remove"
+                    aria-label={`Remove ${att.name}`}
+                    onClick={() =>
+                      setAttachments((prev) =>
+                        prev.filter((a) => a.uri !== att.uri),
+                      )
+                    }
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {showPalette ? (
+            <div ref={paletteRef} className="acp-chat__command-palette">
+              <List
+                aria-label="Slash commands"
+                onActivate={(i) => pickCommand(paletteCommands[i])}
+              >
+                {paletteCommands.map((command, i) => (
+                  <ListRow
+                    key={command.name}
+                    selected={i === activePaletteIndex}
+                    leading={<Command size="1em" aria-hidden="true" />}
+                    trailing={
+                      <span className="acp-chat__cmd-slash">
+                        /{command.name}
+                      </span>
+                    }
+                    onSelect={() => pickCommand(command)}
+                  >
+                    <span className="acp-chat__cmd-title">
+                      {commandDisplayTitle(command.name)}
+                    </span>
+                    {command.description ? (
+                      <span className="acp-chat__cmd-desc">
+                        {command.description}
+                      </span>
+                    ) : null}
+                  </ListRow>
+                ))}
+              </List>
+            </div>
+          ) : null}
+          <Textarea
+            ref={inputRef}
+            className="acp-chat__input"
+            value={draft}
+            rows={3}
+            placeholder={composerPlaceholder(lost, readOnly)}
+            disabled={!inputEnabled}
+            autoCapitalize="off"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              // Any real edit detaches from the recalled entry — the same way
+              // a shell's readline history works.
+              if (historyNav.index !== null)
+                setHistoryNav(NOT_NAVIGATING_HISTORY);
+            }}
+            onPaste={onComposerPaste}
+            onKeyDown={(e) => {
+              if (showPalette) {
+                const nav = paletteNavAction(e.key, e.shiftKey);
+                if (nav) {
+                  e.preventDefault();
+                  if (nav === "up" || nav === "down") {
+                    setPaletteIndex(
+                      stepPaletteIndex(
+                        activePaletteIndex,
+                        nav,
+                        paletteCommands.length,
+                      ),
+                    );
+                    return;
                   }
-                >
-                  ×
-                </button>
-              </span>
+                  if (nav === "pick") {
+                    const command = paletteCommands[activePaletteIndex];
+                    if (command) pickCommand(command);
+                    return;
+                  }
+                  setPaletteDismissed(true);
+                  return;
+                }
+              }
+              // Smart Home/End: first press goes to the current line's
+              // boundary; a second press from that boundary goes to the whole
+              // draft's boundary — the convention a single-line input gives
+              // for free, which a multi-line textarea otherwise overrides
+              // per-line. Handled entirely ourselves (never falling through to
+              // the browser default): WebKit on macOS maps a bare Home/End key
+              // to viewport scrolling, not textarea caret movement, so relying
+              // on the native behavior silently does nothing in the Tauri
+              // webview.
+              if (e.key === "Home" && !e.shiftKey) {
+                e.preventDefault();
+                const el = e.currentTarget;
+                const caret = el.selectionStart ?? 0;
+                const lineStart = lineStartIndex(draft, caret);
+                const target = caret === lineStart ? 0 : lineStart;
+                el.setSelectionRange(target, target);
+                return;
+              }
+              if (e.key === "End" && !e.shiftKey) {
+                e.preventDefault();
+                const el = e.currentTarget;
+                const caret = el.selectionEnd ?? 0;
+                const lineEnd = lineEndIndex(draft, caret);
+                const target = caret === lineEnd ? draft.length : lineEnd;
+                el.setSelectionRange(target, target);
+                return;
+              }
+              // ↑/↓ recall past prompts (terminal-shell convention) — but only
+              // once the caret is already on the draft's first/last line, so a
+              // multi-line draft still gets normal caret movement first.
+              if (e.key === "ArrowUp" && !e.shiftKey) {
+                const el = e.currentTarget;
+                if (caretOnFirstLine(draft, el.selectionStart ?? 0)) {
+                  const next = historyNavUp(
+                    userPromptHistory(transcript),
+                    historyNav,
+                    draft,
+                  );
+                  if (next) {
+                    e.preventDefault();
+                    setHistoryNav(next.state);
+                    setDraft(next.draft);
+                    requestAnimationFrame(() => {
+                      el.setSelectionRange(
+                        next.draft.length,
+                        next.draft.length,
+                      );
+                    });
+                  }
+                }
+                return;
+              }
+              if (e.key === "ArrowDown" && !e.shiftKey) {
+                const el = e.currentTarget;
+                if (caretOnLastLine(draft, el.selectionStart ?? 0)) {
+                  const next = historyNavDown(
+                    userPromptHistory(transcript),
+                    historyNav,
+                  );
+                  if (next) {
+                    e.preventDefault();
+                    setHistoryNav(next.state);
+                    setDraft(next.draft);
+                    requestAnimationFrame(() => {
+                      el.setSelectionRange(
+                        next.draft.length,
+                        next.draft.length,
+                      );
+                    });
+                  }
+                }
+                return;
+              }
+              // A single Escape while a turn is in flight cancels it and hands
+              // the just-sent prompt back to the composer — "let me fix that"
+              // is the whole reason to interrupt, so the text goes with it,
+              // discarding whatever unrelated draft was mid-typing underneath.
+              // Otherwise a *second* Escape within DOUBLE_ESCAPE_MS of the
+              // first clears the draft; a lone Escape does nothing special.
+              if (e.key === "Escape") {
+                if (busy) {
+                  e.preventDefault();
+                  handleRef.current?.cancel();
+                  const history = userPromptHistory(transcript);
+                  const lastSent = history[history.length - 1];
+                  setHistoryNav(NOT_NAVIGATING_HISTORY);
+                  if (lastSent !== undefined) {
+                    setDraft(lastSent);
+                    requestAnimationFrame(() => {
+                      inputRef.current?.setSelectionRange(
+                        lastSent.length,
+                        lastSent.length,
+                      );
+                    });
+                  }
+                  lastEscapeAtRef.current = 0;
+                  return;
+                }
+                const now = Date.now();
+                if (isDoubleEscape(lastEscapeAtRef.current, now)) {
+                  lastEscapeAtRef.current = 0;
+                  e.preventDefault();
+                  setDraft("");
+                  setHistoryNav(NOT_NAVIGATING_HISTORY);
+                } else {
+                  lastEscapeAtRef.current = now;
+                }
+                return;
+              }
+              // Enter sends; Shift+Enter is a newline — the convention every
+              // chat composer in the category uses.
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+          />
+          {/* Hidden width probes — one per measured density, rendered from the
+              same `renderControls` as the live row below so they can never drift
+              from it. `width: max-content` makes each one report what that
+              density actually needs; `useControlDensity` compares those against
+              the live row's width. `inert` keeps the duplicate buttons out of
+              the tab order and off the accessibility tree. */}
+          <div className="acp-chat__controls-probe" ref={probeRef} inert>
+            {MEASURED_DENSITIES.map((probed) => (
+              <div key={probed} className="acp-chat__controls">
+                {renderControls(probed)}
+              </div>
             ))}
           </div>
-        ) : null}
-        {showPalette ? (
-          <div ref={paletteRef} className="acp-chat__command-palette">
-            <List
-              aria-label="Slash commands"
-              onActivate={(i) => pickCommand(paletteCommands[i])}
-            >
-              {paletteCommands.map((command, i) => (
-                <ListRow
-                  key={command.name}
-                  selected={i === activePaletteIndex}
-                  leading={<Command size="1em" aria-hidden="true" />}
-                  trailing={
-                    <span className="acp-chat__cmd-slash">/{command.name}</span>
-                  }
-                  onSelect={() => pickCommand(command)}
-                >
-                  <span className="acp-chat__cmd-title">
-                    {commandDisplayTitle(command.name)}
-                  </span>
-                  {command.description ? (
-                    <span className="acp-chat__cmd-desc">
-                      {command.description}
-                    </span>
-                  ) : null}
-                </ListRow>
-              ))}
-            </List>
+          <div
+            className="acp-chat__controls"
+            ref={rowRef}
+            data-density={density}
+            data-connecting={connecting ? "true" : undefined}
+          >
+            {renderControls(density)}
           </div>
-        ) : null}
-        <Textarea
-          ref={inputRef}
-          className="acp-chat__input"
-          value={draft}
-          rows={3}
-          placeholder={composerPlaceholder(lost, readOnly)}
-          disabled={!inputEnabled}
-          autoCapitalize="off"
-          autoCorrect="off"
-          autoComplete="off"
-          spellCheck={false}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            // Any real edit detaches from the recalled entry — the same way
-            // a shell's readline history works.
-            if (historyNav.index !== null)
-              setHistoryNav(NOT_NAVIGATING_HISTORY);
-          }}
-          onPaste={onComposerPaste}
-          onKeyDown={(e) => {
-            if (showPalette) {
-              const nav = paletteNavAction(e.key, e.shiftKey);
-              if (nav) {
-                e.preventDefault();
-                if (nav === "up" || nav === "down") {
-                  setPaletteIndex(
-                    stepPaletteIndex(
-                      activePaletteIndex,
-                      nav,
-                      paletteCommands.length,
-                    ),
-                  );
-                  return;
-                }
-                if (nav === "pick") {
-                  const command = paletteCommands[activePaletteIndex];
-                  if (command) pickCommand(command);
-                  return;
-                }
-                setPaletteDismissed(true);
-                return;
-              }
-            }
-            // Smart Home/End: first press goes to the current line's
-            // boundary; a second press from that boundary goes to the whole
-            // draft's boundary — the convention a single-line input gives
-            // for free, which a multi-line textarea otherwise overrides
-            // per-line. Handled entirely ourselves (never falling through to
-            // the browser default): WebKit on macOS maps a bare Home/End key
-            // to viewport scrolling, not textarea caret movement, so relying
-            // on the native behavior silently does nothing in the Tauri
-            // webview.
-            if (e.key === "Home" && !e.shiftKey) {
-              e.preventDefault();
-              const el = e.currentTarget;
-              const caret = el.selectionStart ?? 0;
-              const lineStart = lineStartIndex(draft, caret);
-              const target = caret === lineStart ? 0 : lineStart;
-              el.setSelectionRange(target, target);
-              return;
-            }
-            if (e.key === "End" && !e.shiftKey) {
-              e.preventDefault();
-              const el = e.currentTarget;
-              const caret = el.selectionEnd ?? 0;
-              const lineEnd = lineEndIndex(draft, caret);
-              const target = caret === lineEnd ? draft.length : lineEnd;
-              el.setSelectionRange(target, target);
-              return;
-            }
-            // ↑/↓ recall past prompts (terminal-shell convention) — but only
-            // once the caret is already on the draft's first/last line, so a
-            // multi-line draft still gets normal caret movement first.
-            if (e.key === "ArrowUp" && !e.shiftKey) {
-              const el = e.currentTarget;
-              if (caretOnFirstLine(draft, el.selectionStart ?? 0)) {
-                const next = historyNavUp(
-                  userPromptHistory(transcript),
-                  historyNav,
-                  draft,
-                );
-                if (next) {
-                  e.preventDefault();
-                  setHistoryNav(next.state);
-                  setDraft(next.draft);
-                  requestAnimationFrame(() => {
-                    el.setSelectionRange(next.draft.length, next.draft.length);
-                  });
-                }
-              }
-              return;
-            }
-            if (e.key === "ArrowDown" && !e.shiftKey) {
-              const el = e.currentTarget;
-              if (caretOnLastLine(draft, el.selectionStart ?? 0)) {
-                const next = historyNavDown(
-                  userPromptHistory(transcript),
-                  historyNav,
-                );
-                if (next) {
-                  e.preventDefault();
-                  setHistoryNav(next.state);
-                  setDraft(next.draft);
-                  requestAnimationFrame(() => {
-                    el.setSelectionRange(next.draft.length, next.draft.length);
-                  });
-                }
-              }
-              return;
-            }
-            // A single Escape while a turn is in flight cancels it and hands
-            // the just-sent prompt back to the composer — "let me fix that"
-            // is the whole reason to interrupt, so the text goes with it,
-            // discarding whatever unrelated draft was mid-typing underneath.
-            // Otherwise a *second* Escape within DOUBLE_ESCAPE_MS of the
-            // first clears the draft; a lone Escape does nothing special.
-            if (e.key === "Escape") {
-              if (busy) {
-                e.preventDefault();
-                handleRef.current?.cancel();
-                const history = userPromptHistory(transcript);
-                const lastSent = history[history.length - 1];
-                setHistoryNav(NOT_NAVIGATING_HISTORY);
-                if (lastSent !== undefined) {
-                  setDraft(lastSent);
-                  requestAnimationFrame(() => {
-                    inputRef.current?.setSelectionRange(
-                      lastSent.length,
-                      lastSent.length,
-                    );
-                  });
-                }
-                lastEscapeAtRef.current = 0;
-                return;
-              }
-              const now = Date.now();
-              if (isDoubleEscape(lastEscapeAtRef.current, now)) {
-                lastEscapeAtRef.current = 0;
-                e.preventDefault();
-                setDraft("");
-                setHistoryNav(NOT_NAVIGATING_HISTORY);
-              } else {
-                lastEscapeAtRef.current = now;
-              }
-              return;
-            }
-            // Enter sends; Shift+Enter is a newline — the convention every
-            // chat composer in the category uses.
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void send();
-            }
-          }}
-        />
-        {/* Hidden width probes — one per measured density, rendered from the
-            same `renderControls` as the live row below so they can never drift
-            from it. `width: max-content` makes each one report what that
-            density actually needs; `useControlDensity` compares those against
-            the live row's width. `inert` keeps the duplicate buttons out of
-            the tab order and off the accessibility tree. */}
-        <div className="acp-chat__controls-probe" ref={probeRef} inert>
-          {MEASURED_DENSITIES.map((probed) => (
-            <div key={probed} className="acp-chat__controls">
-              {renderControls(probed)}
-            </div>
-          ))}
-        </div>
-        <div
-          className="acp-chat__controls"
-          ref={rowRef}
-          data-density={density}
-          data-connecting={connecting ? "true" : undefined}
-        >
-          {renderControls(density)}
         </div>
       </div>
-    </div>
+    </ChatLinkVerifyContext.Provider>
   );
 }
