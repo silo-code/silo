@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.82.0](https://github.com/silo-code/silo/compare/silo-v0.81.1...silo-v0.82.0) (2026-11-09)
+
+
+### Features
+
+* **agents-chat-panel,terminal:** link file paths that contain spaces ([#673](https://github.com/silo-code/silo/issues/673)) ([0005000](https://github.com/silo-code/silo/commit/0005000591e8665b62cabf6fd54769918a2d1012))
+
 ## [0.81.1](https://github.com/silo-code/silo/compare/silo-v0.81.0...silo-v0.81.1) (2026-11-08)
 
 
